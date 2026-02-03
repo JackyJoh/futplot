@@ -1,0 +1,16 @@
+# FutPlot Scraper Requirements
+# Install with: pip install -r requirements.txt
+
+# Web scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+selenium>=4.16.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Data processing
+pandas>=2.1.4
+
+# Utilities
+python-dotenv>=1.0.0
