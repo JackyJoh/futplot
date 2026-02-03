@@ -8,34 +8,27 @@ const pool = new Pool({
 
 export async function GET(request: Request) {
   try {
-    // TODO: Replace with actual database query
-    // Example query:
-    // const result = await pool.query('SELECT * FROM players LIMIT 10')
-    // return NextResponse.json(result.rows)
+    const result = await pool.query('SELECT * FROM players')
     
-    // Placeholder response
-    const placeholderData = [
-      {
-        id: 1,
-        name: 'Player 1',
-        position: 'Forward',
-        goals: 15,
-        assists: 8,
-      },
-      {
-        id: 2,
-        name: 'Player 2',
-        position: 'Midfielder',
-        goals: 8,
-        assists: 12,
-      },
-    ]
+    // Convert numeric fields from strings to numbers
+    const players = result.rows.map((row: any) => ({
+      ...row,
+      minutes: parseInt(row.minutes) || 0,
+      goals: parseInt(row.goals) || 0,
+      assists: parseInt(row.assists) || 0,
+      xa: parseFloat(row.xa) || 0,
+      xg: parseFloat(row.xg) || 0,
+      goals_per90: parseFloat(row.goals_per90) || 0,
+      assists_per90: parseFloat(row.assists_per90) || 0,
+      xg_per90: parseFloat(row.xg_per90) || 0,
+      xa_per90: parseFloat(row.xa_per90) || 0,
+      shots: parseInt(row.shots) || 0,
+      key_passes: parseInt(row.key_passes) || 0,
+      xg_chain: parseFloat(row.xg_chain) || 0,
+      xg_buildup: parseFloat(row.xg_buildup) || 0,
+    }))
     
-    return NextResponse.json({
-      success: true,
-      data: placeholderData,
-      message: 'Database connection not configured yet. Replace with actual query.',
-    })
+    return NextResponse.json(players)
   } catch (error) {
     console.error('Database error:', error)
     return NextResponse.json(
