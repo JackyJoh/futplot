@@ -46,3 +46,6 @@ venv/
 env/
 ENV/
 scripts/.env
+
+
+*.csv

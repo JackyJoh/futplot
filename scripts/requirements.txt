@@ -2,15 +2,13 @@
 # Install with: pip install -r requirements.txt
 
 # Web scraping
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-selenium>=4.16.0
-
-# Database
-psycopg2-binary>=2.9.9
+soccerdata>=1.7.0
 
 # Data processing
 pandas>=2.1.4
+
+# Database
+psycopg2-binary>=2.9.9
 
 # Utilities
 python-dotenv>=1.0.0

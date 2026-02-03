@@ -1,135 +1,113 @@
 """
-FutPlot Web Scraper
-===================
-This script scrapes football player statistics from various sources
-and stores them in a PostgreSQL database.
-
-TODO: Implement scraping logic for your specific data source
+FutPlot FBref Scraper
+=====================
+Scrapes comprehensive player statistics from FBref for Top 5 European leagues
 """
 
 import os
-import requests
+import pandas as pd
+import soccerdata as sd
 from datetime import datetime
-import psycopg2
-from psycopg2 import sql
-
-
-def get_db_connection():
-    """Establish connection to PostgreSQL database"""
-    database_url = os.getenv('DATABASE_URL')
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable not set")
-    
-    return psycopg2.connect(database_url)
+import time
 
 
 def scrape_player_data():
-    """
-    Scrape player statistics from data source
+    """Scrape comprehensive player stats from FBref"""
+    print("=" * 60)
+    print("FutPlot Scraper - FBref")
+    print("=" * 60)
     
-    TODO: Implement your scraping logic here
-    Examples:
-    - Use requests/beautifulsoup4 for HTML scraping
-    - Use selenium for JavaScript-heavy sites
-    - Use API endpoints if available
+    LEAGUE = 'Big 5 European Leagues Combined'
+    TARGET_SEASON = '2025-2026'  # Use completed season to avoid blocking
+    STAT_TYPES = ['standard', 'shooting', 'passing', 'defense', 'misc', 'keeper']
     
-    Returns:
-        list: List of player dictionaries with statistics
-    """
-    print(f"[{datetime.now()}] Starting scraping process...")
+    print(f"\nLeague: {LEAGUE}")
+    print(f"Season: {TARGET_SEASON}")
+    print(f"Stats: {len(STAT_TYPES)} types")
+    print("\n--- Fetching Data ---\n")
     
-    # Placeholder - replace with actual scraping logic
-    players_data = [
-        {
-            'name': 'Player 1',
-            'position': 'Forward',
-            'goals': 15,
-            'assists': 8,
-            'minutes_played': 2700,
-        },
-        {
-            'name': 'Player 2',
-            'position': 'Midfielder',
-            'goals': 8,
-            'assists': 12,
-            'minutes_played': 3000,
-        }
-    ]
+    # Initialize scraper with caching enabled
+    scraper = sd.FBref(
+        leagues=[LEAGUE], 
+        seasons=TARGET_SEASON, 
+        no_cache=False
+    )
     
-    print(f"Scraped {len(players_data)} players")
-    return players_data
-
-
-def save_to_database(players_data):
-    """
-    Save scraped data to PostgreSQL database
+    print("--- Fetching Data ---")
     
-    Args:
-        players_data (list): List of player dictionaries
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # TODO: Adjust SQL query based on your database schema
-        insert_query = sql.SQL("""
-            INSERT INTO players (name, position, goals, assists, minutes_played, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (name) DO UPDATE SET
-                position = EXCLUDED.position,
-                goals = EXCLUDED.goals,
-                assists = EXCLUDED.assists,
-                minutes_played = EXCLUDED.minutes_played,
-                updated_at = EXCLUDED.updated_at
-        """)
-        
-        for player in players_data:
-            cursor.execute(insert_query, (
-                player['name'],
-                player['position'],
-                player['goals'],
-                player['assists'],
-                player['minutes_played'],
-                datetime.now()
-            ))
-        
-        conn.commit()
-        print(f"Successfully saved {len(players_data)} players to database")
-        
-    except Exception as e:
-        print(f"Database error: {e}")
-        if conn:
-            conn.rollback()
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
+    all_dfs = {}
+    merge_cols = ['player', 'season', 'team']
+    
+    for stat_type in STAT_TYPES:
+        try:
+            print(f"{stat_type}...", end=" ", flush=True)
+            df = scraper.read_player_season_stats(stat_type=stat_type)
+            
+            # Flatten MultiIndex columns
+            df.columns = [
+                "_".join(str(c) for c in col if c).strip()
+                if isinstance(col, tuple) else str(col)
+                for col in df.columns
+            ]
+            
+            df = df.reset_index()
+            all_dfs[stat_type] = df
+            print(f"✓ ({len(df):,} players)")
+            
+            # Small delay to be respectful
+            time.sleep(2)
+            
+        except Exception as e:
+            print(f"✗ Skipped")
+            time.sleep(3)
+            continue
+    
+    if not all_dfs:
+        print("\n✗ No data collected")
+        return pd.DataFrame()
+    
+    # Merge all stat types
+    print("\n--- Merging Stats ---")
+    df_merged = all_dfs.get('standard', list(all_dfs.values())[0])
+    
+    for stat_type, df in all_dfs.items():
+        if stat_type != 'standard' and stat_type in all_dfs:
+            df_merged = df_merged.merge(
+                df, 
+                on=merge_cols, 
+                how='left', 
+                suffixes=('', f'_{stat_type}')
+            )
+    
+    print(f"✓ Complete: {len(df_merged):,} players, {len(df_merged.columns)} columns")
+    return df_merged
 
 
 def main():
-    """Main execution function"""
+    """Main execution"""
     try:
-        print("=" * 50)
-        print("FutPlot Scraper - Starting")
-        print("=" * 50)
+        df_players = scrape_player_data()
         
-        # Scrape data
-        players_data = scrape_player_data()
+        if df_players.empty:
+            print("\n✗ No data to save")
+            return
         
-        # Save to database
-        if players_data:
-            save_to_database(players_data)
-        else:
-            print("No data scraped, skipping database save")
+        # Save CSV
+        output_file = 'data/fbref_2023_2024.csv'
+        os.makedirs('data', exist_ok=True)
+        df_players.to_csv(output_file, index=False)
         
-        print("=" * 50)
-        print("FutPlot Scraper - Completed")
-        print("=" * 50)
+        print(f"\n✅ Saved: {output_file}")
+        print(f"📊 Players: {len(df_players):,}")
+        print(f"📊 Columns: {len(df_players.columns)}")
+        print(f"📊 Sample columns: {list(df_players.columns[:10])}")
+        
+        print("\n" + "=" * 60)
         
     except Exception as e:
-        print(f"Error in main execution: {e}")
-        raise
+        print(f"\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
