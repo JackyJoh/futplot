@@ -28,11 +28,15 @@ interface Player {
   assists_per90: number;
   xg_per90: number;
   xa_per90: number;
+  'G+A': number;
+  'npG+A': number;
 }
 
 const statOptions = [
   { value: 'goals', label: 'Goals' },
   { value: 'assists', label: 'Assists' },
+  { value: 'G+A', label: 'G+A' },
+  { value: 'npG+A', label: 'npG+A' },
   { value: 'xg', label: 'xG' },
   { value: 'xa', label: 'xA' },
   { value: 'np_goals', label: 'Non-Penalty Goals' },
@@ -52,6 +56,9 @@ export default function PlotsPage() {
   const [league, setLeague] = useState<string>('all');
   const [position, setPosition] = useState<string>('FWD');
   const [minGames, setMinGames] = useState<number>(5);
+  const [minXValue, setMinXValue] = useState<number>(0);
+  const [minYValue, setMinYValue] = useState<number>(0);
+  const [percentile, setPercentile] = useState<number>(75);
   const [xStat, setXStat] = useState<keyof Player>('xg');
   const [yStat, setYStat] = useState<keyof Player>('xa');
   const [sizeStat, setSizeStat] = useState<keyof Player>('minutes');
@@ -67,15 +74,47 @@ export default function PlotsPage() {
   });
 
   // Filter players
-  const filteredPlayers = players.filter(player => {
+  const baseFilteredPlayers = players.filter(player => {
     if (league !== 'all' && player.league !== league) return false;
-    if (position !== 'all' && player.position !== position) return false;
+    if (position === 'FWD+MID') {
+      if (player.position !== 'FWD' && player.position !== 'MID') return false;
+    } else if (position !== 'all' && player.position !== position) {
+      return false;
+    }
     if (player.matches < minGames) return false;
     return true;
   });
 
+  // Calculate percentile thresholds
+  const xValuesForPercentile = baseFilteredPlayers.map(p => Number(p[xStat]) || 0).sort((a, b) => a - b);
+  const yValuesForPercentile = baseFilteredPlayers.map(p => Number(p[yStat]) || 0).sort((a, b) => a - b);
+  const percentileIndex = Math.floor(xValuesForPercentile.length * (1 - percentile / 100));
+  const xPercentileThreshold = xValuesForPercentile.length > 0 ? xValuesForPercentile[percentileIndex] : 0;
+  const yPercentileThreshold = yValuesForPercentile.length > 0 ? yValuesForPercentile[percentileIndex] : 0;
+
+  // Apply all filters including percentile
+  const filteredPlayers = baseFilteredPlayers.filter(player => {
+    const xValue = Number(player[xStat]) || 0;
+    const yValue = Number(player[yStat]) || 0;
+    if (xValue < Math.max(minXValue, xPercentileThreshold)) return false;
+    if (yValue < Math.max(minYValue, yPercentileThreshold)) return false;
+    return true;
+  });
+
   const leagues = ['ENG-Premier League', 'ESP-La Liga', 'GER-Bundesliga', 'ITA-Serie A', 'FRA-Ligue 1'];
-  const positions = ['FWD', 'MID', 'DEF', 'GK'];
+  const positions = ['FWD', 'MID', 'FWD+MID', 'DEF', 'GK'];
+
+  // Calculate median values for reference lines
+  const xValues = filteredPlayers.map(p => Number(p[xStat]) || 0).sort((a, b) => a - b);
+  const yValues = filteredPlayers.map(p => Number(p[yStat]) || 0).sort((a, b) => a - b);
+  const medianX = xValues.length > 0 ? xValues[Math.floor(xValues.length / 2)] : 0;
+  const medianY = yValues.length > 0 ? yValues[Math.floor(yValues.length / 2)] : 0;
+
+  // Calculate dynamic label threshold
+  // 100% filter → show top 5%, 75% filter → show top 10%, 50% → top 15%, 25% → top 20%
+  const labelPercentile = 95 - (100 - percentile) * 0.2;
+  const labelThresholdX = xValues.length > 0 ? xValues[Math.floor(xValues.length * (labelPercentile / 100))] : 0;
+  const labelThresholdY = yValues.length > 0 ? yValues[Math.floor(yValues.length * (labelPercentile / 100))] : 0;
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden flex flex-col">
@@ -173,6 +212,25 @@ export default function PlotsPage() {
                     min="0"
                   />
                 </div>
+
+                {/* Percentile Filter */}
+                <div>
+                  <label className="block text-xs font-mono font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+                    Top Percentile
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      value={percentile}
+                      onChange={(e) => setPercentile(parseInt(e.target.value))}
+                      className="flex-1"
+                      min="0"
+                      max="100"
+                      step="5"
+                    />
+                    <span className="text-cyan-400 font-mono font-bold text-sm w-12 text-right">{percentile}%</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -244,6 +302,10 @@ export default function PlotsPage() {
               xStat={xStat}
               yStat={yStat}
               sizeStat={sizeStat}
+              medianX={medianX}
+              medianY={medianY}
+              top25PercentileX={labelThresholdX}
+              top25PercentileY={labelThresholdY}
             />
           )}
         </div>

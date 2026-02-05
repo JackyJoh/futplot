@@ -25,6 +25,8 @@ interface Player {
   assists_per90: number;
   xg_per90: number;
   xa_per90: number;
+  'G+A': number;
+  'npG+A': number;
 }
 
 interface BubbleChartProps {
@@ -33,6 +35,10 @@ interface BubbleChartProps {
   yStat: keyof Player;
   sizeStat: keyof Player;
   colorBy?: 'position' | 'team';
+  medianX?: number;
+  medianY?: number;
+  top25PercentileX?: number;
+  top25PercentileY?: number;
 }
 
 const positionColors: Record<string, string> = {
@@ -47,7 +53,11 @@ export default function BubbleChart({
   xStat, 
   yStat, 
   sizeStat,
-  colorBy = 'position'
+  colorBy = 'position',
+  medianX,
+  medianY,
+  top25PercentileX,
+  top25PercentileY
 }: BubbleChartProps) {
   const [hoveredBubble, setHoveredBubble] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
@@ -68,9 +78,9 @@ export default function BubbleChart({
   const yValues = players.map(p => Number(p[yStat]) || 0);
   const sizeValues = players.map(p => Number(p[sizeStat]) || 0);
 
-  const maxX = Math.max(...xValues);
-  const maxY = Math.max(...yValues);
-  const maxSize = Math.max(...sizeValues);
+  const maxX = Math.max(...xValues, 1);
+  const maxY = Math.max(...yValues, 1);
+  const maxSize = Math.max(...sizeValues, 1);
 
   // Calculate bubble positions and sizes
   const bubbles = players.map((player, index) => {
@@ -78,9 +88,9 @@ export default function BubbleChart({
     const yVal = Number(player[yStat]) || 0;
     const sizeVal = Number(player[sizeStat]) || 0;
 
-    const x = (xVal / maxX) * (chartWidth - 2 * padding) + padding;
-    const y = chartHeight - ((yVal / maxY) * (chartHeight - 2 * padding) + padding);
-    const radius = (sizeVal / maxSize) * 20 + 1;
+    const x = isNaN(xVal / maxX) ? padding : (xVal / maxX) * (chartWidth - 2 * padding) + padding;
+    const y = isNaN(yVal / maxY) ? chartHeight - padding : chartHeight - ((yVal / maxY) * (chartHeight - 2 * padding) + padding);
+    const radius = Math.max(3, isNaN(sizeVal / maxSize) ? 5 : (sizeVal / maxSize) *20 + 3);
     
     const color = positionColors[player.position] || '#94a3b8';
 
@@ -247,6 +257,59 @@ export default function BubbleChart({
             {formatStatLabel(yStat as string)}
           </text>
 
+          {/* Median Lines */}
+          {medianX !== undefined && medianX !== null && maxX > 0 && (
+            <>
+              <line
+                x1={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
+                y1={0}
+                x2={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
+                y2={chartHeight - padding}
+                stroke="#00d4ff"
+                strokeWidth="3"
+                strokeDasharray="8 4"
+                opacity="0.7"
+              />
+              <text
+                x={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
+                y={-10}
+                textAnchor="middle"
+                fill="#00d4ff"
+                fontSize="11"
+                fontWeight="700"
+                fontFamily="'JetBrains Mono', monospace"
+                style={{ background: 'rgba(0, 0, 0, 0.7)' }}
+              >
+                MEDIAN: {formatNumber(medianX)}
+              </text>
+            </>
+          )}
+          {medianY !== undefined && medianY !== null && maxY > 0 && (
+            <>
+              <line
+                x1={padding}
+                y1={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
+                x2={chartWidth - padding}
+                y2={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
+                stroke="#a855f7"
+                strokeWidth="3"
+                strokeDasharray="8 4"
+                opacity="0.7"
+              />
+              <text
+                x={chartWidth - padding + 15}
+                y={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding) + 5}
+                textAnchor="start"
+                fill="#a855f7"
+                fontSize="12"
+                fontWeight="700"
+                fontFamily="'JetBrains Mono', monospace"
+              >
+                MEDIAN: {formatNumber(medianY)}
+              </text>
+            </>
+          )}
+
           {/* Bubbles */}
           {bubbles.map((bubble, index) => (
             <g
@@ -273,6 +336,32 @@ export default function BubbleChart({
               />
             </g>
           ))}
+
+          {/* Player name labels for top 25% performers */}
+          {bubbles.map((bubble) => {
+            const isTop25X = top25PercentileX !== undefined && bubble.xVal >= top25PercentileX;
+            const isTop25Y = top25PercentileY !== undefined && bubble.yVal >= top25PercentileY;
+            
+            if (isTop25X || isTop25Y) {
+              return (
+                <text
+                  key={`label-${bubble.id}`}
+                  x={bubble.x}
+                  y={bubble.y + bubble.radius + 12}
+                  textAnchor="middle"
+                  fill="#94a3b8"
+                  fontSize="9"
+                  fontWeight="500"
+                  fontFamily="'JetBrains Mono', monospace"
+                  opacity="0.8"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {bubble.player}
+                </text>
+              );
+            }
+            return null;
+          })}
         </svg>
 
         {/* Tooltip */}

@@ -51,7 +51,8 @@ export async function GET(request: Request) {
         minutes, goals, assists, xa, xg,
         np_goals, np_xg, penalties,
         goals_per90, assists_per90, xg_per90, xa_per90,
-        shots, key_passes, xg_chain, xg_buildup
+        shots, key_passes, xg_chain, xg_buildup,
+        "G+A", "npG+A"
       FROM players
       ORDER BY goals DESC
     `)
@@ -82,6 +83,8 @@ export async function GET(request: Request) {
       key_passes: parseInt(row.key_passes) || 0,
       xg_chain: parseFloat(row.xg_chain) || 0,
       xg_buildup: parseFloat(row.xg_buildup) || 0,
+      'G+A': parseInt(row['G+A']) || 0,
+      'npG+A': parseInt(row['npG+A']) || 0,
     }))
     
     // Return with aggressive cache headers (1 hour public cache, revalidate every 24 hours)
