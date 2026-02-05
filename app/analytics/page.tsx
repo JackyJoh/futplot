@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 
 type SortKey = 'player' | 'minutes' | 'goals' | 'assists' | 'goals_assists' | 'xa' | 'goals_per90' | 'shots' | 'penalties';
 type SortOrder = 'asc' | 'desc';
@@ -45,8 +46,8 @@ export default function AnalyticsPage() {
   const loadMoreRef = useRef<HTMLTableRowElement>(null);
 
   // Fetch all players data
-  const { data: players = [], isLoading, error } = useQuery({
-    queryKey: ['players'],
+  const { data: players = [], isLoading, error, isFetching } = useQuery({
+    queryKey: ['players'], // Changed key to bust cache
     queryFn: async () => {
       const response = await fetch('/api/players');
       if (!response.ok) {
@@ -63,6 +64,7 @@ export default function AnalyticsPage() {
       
       return data;
     },
+    placeholderData: (previousData) => previousData, // Use cached data immediately while fetching
   });
 
   // Apply filters with useMemo to avoid infinite loops
@@ -156,7 +158,7 @@ export default function AnalyticsPage() {
   const visiblePlayers = sortedPlayers.slice(0, displayCount);
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white relative overflow-hidden">
+    <div className="h-screen bg-[#0a0e1a] text-white relative overflow-hidden flex flex-col">
       {/* Background decorative star */}
       <div className="absolute bottom-0 right-0 w-96 h-96 opacity-10">
         <svg viewBox="0 0 100 100" className="w-full h-full text-cyan-400">
@@ -167,13 +169,19 @@ export default function AnalyticsPage() {
         </svg>
       </div>
 
-      <div className="container mx-auto px-6 py-4 relative z-10">
-        <div className="flex gap-6">
+      <div className="container mx-auto px-6 py-3 relative z-10 flex-1 flex flex-col overflow-hidden">
+        <div className="flex gap-6 flex-1 overflow-hidden">
           {/* Left Sidebar - Filters & Controls */}
-          <div className="w-80 flex-shrink-0 space-y-4">
+          <div className="w-80 flex-shrink-0 space-y-2">
             {/* Header */}
             <div>
-              <h1 className="text-3xl font-black tracking-tight">
+              <Link href="/" className="inline-flex items-center gap-1 text-slate-400 hover:text-cyan-400 transition-colors mb-2 text-xs">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Home
+              </Link>
+              <h1 className="text-2xl font-black tracking-tight">
                 <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
                   FUTPLOT ANALYTICS
                 </span>
@@ -184,8 +192,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Filters Section */}
-            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4">
-              <div className="space-y-4">
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3">
+              <div className="space-y-3">
                 {/* League Filters */}
                 <div>
                   <span className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-3 block">League</span>
@@ -230,12 +238,12 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Stats & Export */}
-            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 space-y-3">
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3 space-y-2">
               <div className="text-xs text-slate-500">
                 <div className="mb-1">Showing {visiblePlayers.length} of {sortedPlayers.length} players</div>
                 <div>Last Updated: {currentDate}</div>
               </div>
-              <button className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 flex items-center justify-center gap-2">
+              <button className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 flex items-center justify-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
@@ -245,8 +253,8 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Right Side - Data Table */}
-          <div className="flex-1 min-w-0">
-            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden h-[calc(100vh-2rem)]">
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden flex-1">
               <div className="overflow-y-auto h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800/50 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-slate-800 hover:[&::-webkit-scrollbar-thumb]:bg-slate-500">
             <table className="w-full table-fixed">
               <thead>
@@ -426,14 +434,14 @@ export default function AnalyticsPage() {
                             {player.league.split('-')[1] || player.league}
                           </span>
                         </td>
-                        <td className="px-6 py-3 text-center text-slate-300">{player.minutes?.toLocaleString() || 0}</td>
-                        <td className="px-0 py-3 text-center font-semibold text-white">{player.goals || 0}</td>
-                        <td className="px-0 py-3 text-center font-semibold text-white">{player.assists || 0}</td>
-                        <td className="px-8 py-3 text-center text-cyan-400 font-semibold">{(player.goals || 0) + (player.assists || 0)}</td>
-                        <td className="px-6 py-3 text-center text-slate-300">{player.xa ? player.xa.toFixed(1) : '-'}</td>
-                        <td className="px-6 py-3 text-center text-slate-300">{player.goals_per90 ? player.goals_per90.toFixed(2) : '-'}</td>
-                        <td className="px-6 py-3 text-center text-slate-300">{player.shots || 0}</td>
-                        <td className="px-6 py-3 text-center text-slate-300">{player.penalties || 0}</td>
+                        <td className={`px-6 py-3 text-center ${sortKey === 'minutes' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.minutes?.toLocaleString() || 0}</td>
+                        <td className={`px-0 py-3 text-center ${sortKey === 'goals' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.goals || 0}</td>
+                        <td className={`px-0 py-3 text-center ${sortKey === 'assists' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.assists || 0}</td>
+                        <td className={`px-8 py-3 text-center ${sortKey === 'goals_assists' ? 'font-bold text-white' : 'text-cyan-400'}`}>{(player.goals || 0) + (player.assists || 0)}</td>
+                        <td className={`px-6 py-3 text-center ${sortKey === 'xa' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.xa ? player.xa.toFixed(1) : '-'}</td>
+                        <td className={`px-6 py-3 text-center ${sortKey === 'goals_per90' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.goals_per90 ? player.goals_per90.toFixed(2) : '-'}</td>
+                        <td className={`px-6 py-3 text-center ${sortKey === 'shots' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.shots || 0}</td>
+                        <td className={`px-6 py-3 text-center ${sortKey === 'penalties' ? 'font-bold text-white' : 'text-slate-300'}`}>{player.penalties || 0}</td>
                       </tr>
                     ))}
                     {/* Loading trigger for infinite scroll */}

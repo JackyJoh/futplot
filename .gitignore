@@ -42,6 +42,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+data/
 venv/
 env/
 ENV/
