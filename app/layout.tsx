@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-emerald-400">
+      <body className="bg-[#1a1f3a] text-white font-body antialiased">
         <Providers>
           {children}
         </Providers>

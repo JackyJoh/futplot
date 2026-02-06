@@ -48,5 +48,8 @@ env/
 ENV/
 scripts/.env
 
+# Ignore .claude folder
+.claude/
+
 
 *.csv

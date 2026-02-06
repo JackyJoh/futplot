@@ -42,31 +42,28 @@ interface BubbleChartProps {
 }
 
 const positionColors: Record<string, string> = {
-  FWD: '#00d4ff',
-  MID: '#a855f7',
-  DEF: '#ff6b6b',
-  GK: '#ffd93d'
+  FWD: '#06b6d4',
+  MID: '#8b5cf6',
+  DEF: '#f43f5e',
+  GK: '#fbbf24'
 };
 
-export default function BubbleChart({ 
-  players, 
-  xStat, 
-  yStat, 
+const OVERLAP_THRESHOLD = 12;
+const MIN_HIT_RADIUS = 14;
+
+export default function BubbleChart({
+  players,
+  xStat,
+  yStat,
   sizeStat,
-  colorBy = 'position',
   medianX,
   medianY,
   top25PercentileX,
   top25PercentileY
 }: BubbleChartProps) {
   const [hoveredBubble, setHoveredBubble] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(false);
-    const timer = setTimeout(() => setMounted(true), 10);
-    return () => clearTimeout(timer);
-  }, [players, xStat, yStat, sizeStat]);
+  const [clusterMenu, setClusterMenu] = useState<{ bubbles: any[]; x: number; y: number } | null>(null);
+  const [pinnedPlayer, setPinnedPlayer] = useState<any>(null);
 
   // Chart dimensions
   const chartWidth = 1200;
@@ -83,28 +80,73 @@ export default function BubbleChart({
   const maxSize = Math.max(...sizeValues, 1);
 
   // Calculate bubble positions and sizes
-  const bubbles = players.map((player, index) => {
+  const bubbles = players.map((player) => {
     const xVal = Number(player[xStat]) || 0;
     const yVal = Number(player[yStat]) || 0;
     const sizeVal = Number(player[sizeStat]) || 0;
 
-    const x = isNaN(xVal / maxX) ? padding : (xVal / maxX) * (chartWidth - 2 * padding) + padding;
-    const y = isNaN(yVal / maxY) ? chartHeight - padding : chartHeight - ((yVal / maxY) * (chartHeight - 2 * padding) + padding);
-    const radius = Math.max(3, isNaN(sizeVal / maxSize) ? 5 : (sizeVal / maxSize) *20 + 3);
-    
+    const x = (xVal / maxX) * (chartWidth - 2 * padding) + padding;
+    const y = chartHeight - ((yVal / maxY) * (chartHeight - 2 * padding) + padding);
+    const radius = Math.max(4, (sizeVal / maxSize) * 18 + 4);
+
     const color = positionColors[player.position] || '#94a3b8';
 
-    return { 
-      ...player, 
-      x, 
-      y, 
-      radius, 
+    return {
+      ...player,
+      x,
+      y,
+      radius,
       color,
       xVal,
       yVal,
       sizeVal
     };
   });
+
+  // Find all bubbles overlapping with a target bubble
+  const getCluster = (target: any) => {
+    return bubbles.filter(b => {
+      const dx = b.x - target.x;
+      const dy = b.y - target.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      return dist < (b.radius + target.radius + OVERLAP_THRESHOLD);
+    });
+  };
+
+  // Pre-compute which bubble IDs belong to a cluster
+  const clusteredIds = new Set<number>();
+
+  for (const bubble of bubbles) {
+    if (clusteredIds.has(bubble.id)) continue;
+    const cluster = getCluster(bubble);
+    if (cluster.length > 1) {
+      cluster.forEach(b => clusteredIds.add(b.id));
+    }
+  }
+
+  const dismissAll = () => {
+    setClusterMenu(null);
+    setPinnedPlayer(null);
+    setHoveredBubble(null);
+  };
+
+  const handleBubbleClick = (bubble: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!clusteredIds.has(bubble.id)) return;
+    const cluster = getCluster(bubble);
+    setClusterMenu({ bubbles: cluster, x: bubble.x, y: bubble.y });
+    setPinnedPlayer(null);
+  };
+
+  const handleClusterSelect = (bubble: any) => {
+    setPinnedPlayer(bubble);
+    setClusterMenu(null);
+  };
+
+  // Clear state when data/axes change
+  useEffect(() => {
+    dismissAll();
+  }, [xStat, yStat, sizeStat, players.length]);
 
   // Format stat label
   const formatStatLabel = (stat: string) => {
@@ -116,62 +158,44 @@ export default function BubbleChart({
     return value % 1 === 0 ? value : value.toFixed(1);
   };
 
+  // Position an overlay next to an anchor point, offset by radius
+  const getOverlayStyle = (anchorX: number, anchorY: number, anchorR: number, overlayWidth: number) => {
+    const gap = 14;
+    let left: number;
+    if (anchorX + anchorR + gap + overlayWidth > chartWidth) {
+      left = anchorX - anchorR - gap - overlayWidth;
+    } else {
+      left = anchorX + anchorR + gap;
+    }
+    let top = anchorY - 50;
+    if (top < 0) top = 4;
+    if (top + 220 > chartHeight + 40) top = chartHeight + 40 - 220;
+    return { left: `${left}px`, top: `${top}px` };
+  };
+
+  // Show stat card for: pinned player (click), or hovered non-clustered bubble
+  const hoveredSoloBubble = hoveredBubble && !clusteredIds.has(hoveredBubble.id) && !clusterMenu && !pinnedPlayer
+    ? hoveredBubble
+    : null;
+  const displayBubble = pinnedPlayer || hoveredSoloBubble;
+
+  const isOverlayActive = !!(clusterMenu || pinnedPlayer);
+
   return (
-    <div className="relative">
-      <style jsx>{`
-        @keyframes bubbleEnter {
-          0% {
-            opacity: 0;
-            transform: scale(0);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 0.6; }
-          50% { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-
-      <div className="bg-gray-900/60 backdrop-blur-xl rounded-3xl p-10 border border-cyan-400/20 shadow-2xl">
+    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-8">
+      {/* SVG wrapper — w-fit so SVG coords map directly to absolute positioning */}
+      <div className="relative w-fit mx-auto">
         <svg
           width={chartWidth}
           height={chartHeight}
-          className="block mx-auto overflow-visible"
+          className="block overflow-visible"
+          onClick={dismissAll}
         >
-          <defs>
-            <linearGradient id="gridGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.1"/>
-              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.1"/>
-            </linearGradient>
-            
-            {bubbles.map(bubble => (
-              <filter key={`glow-${bubble.id}`} id={`glow-${bubble.id}`}>
-                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            ))}
-          </defs>
+          {/* Invisible background to catch clicks on empty chart space */}
+          <rect x={0} y={0} width={chartWidth} height={chartHeight} fill="transparent" />
 
           {/* Vertical grid lines */}
-          {[0, 0.2, 0.4, 0.6, 0.8, 1].map(fraction => {
+          {[0, 0.25, 0.5, 0.75, 1].map(fraction => {
             const val = maxX * fraction;
             return (
               <g key={`v-${fraction}`}>
@@ -180,19 +204,17 @@ export default function BubbleChart({
                   y1={padding}
                   x2={fraction * (chartWidth - 2 * padding) + padding}
                   y2={chartHeight - padding}
-                  stroke="url(#gridGradient)"
+                  stroke="rgba(255, 255, 255, 0.1)"
                   strokeWidth="1"
-                  strokeDasharray="4 4"
-                  opacity="0.3"
                 />
                 <text
                   x={fraction * (chartWidth - 2 * padding) + padding}
-                  y={chartHeight - padding + 25}
+                  y={chartHeight - padding + 20}
                   textAnchor="middle"
                   fill="#64748b"
-                  fontSize="12"
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontWeight="500"
+                  fontSize="11"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  className="tabular-nums"
                 >
                   {formatNumber(val)}
                 </text>
@@ -201,7 +223,7 @@ export default function BubbleChart({
           })}
 
           {/* Horizontal grid lines */}
-          {[0, 0.2, 0.4, 0.6, 0.8, 1].map(fraction => {
+          {[0, 0.25, 0.5, 0.75, 1].map(fraction => {
             const val = maxY * fraction;
             return (
               <g key={`h-${fraction}`}>
@@ -210,19 +232,17 @@ export default function BubbleChart({
                   y1={chartHeight - (fraction * (chartHeight - 2 * padding) + padding)}
                   x2={chartWidth - padding}
                   y2={chartHeight - (fraction * (chartHeight - 2 * padding) + padding)}
-                  stroke="url(#gridGradient)"
+                  stroke="rgba(255, 255, 255, 0.1)"
                   strokeWidth="1"
-                  strokeDasharray="4 4"
-                  opacity="0.3"
                 />
                 <text
-                  x={padding - 15}
-                  y={chartHeight - (fraction * (chartHeight - 2 * padding) + padding) + 5}
+                  x={padding - 12}
+                  y={chartHeight - (fraction * (chartHeight - 2 * padding) + padding) + 4}
                   textAnchor="end"
                   fill="#64748b"
-                  fontSize="12"
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontWeight="500"
+                  fontSize="11"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  className="tabular-nums"
                 >
                   {formatNumber(val)}
                 </text>
@@ -233,26 +253,26 @@ export default function BubbleChart({
           {/* Axis labels */}
           <text
             x={chartWidth / 2}
-            y={chartHeight - 10}
+            y={chartHeight - 15}
             textAnchor="middle"
-            fill="#00d4ff"
-            fontSize="14"
-            fontWeight="700"
-            fontFamily="'JetBrains Mono', monospace"
-            letterSpacing="2px"
+            fill="#06b6d4"
+            fontSize="12"
+            fontWeight="600"
+            fontFamily="'IBM Plex Mono', monospace"
+            letterSpacing="1px"
           >
             {formatStatLabel(xStat as string)}
           </text>
           <text
-            x={20}
+            x={15}
             y={chartHeight / 2}
             textAnchor="middle"
-            fill="#a855f7"
-            fontSize="14"
-            fontWeight="700"
-            fontFamily="'JetBrains Mono', monospace"
-            letterSpacing="2px"
-            transform={`rotate(-90, 20, ${chartHeight / 2})`}
+            fill="#06b6d4"
+            fontSize="12"
+            fontWeight="600"
+            fontFamily="'IBM Plex Mono', monospace"
+            letterSpacing="1px"
+            transform={`rotate(-90, 15, ${chartHeight / 2})`}
           >
             {formatStatLabel(yStat as string)}
           </text>
@@ -262,23 +282,22 @@ export default function BubbleChart({
             <>
               <line
                 x1={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
-                y1={0}
+                y1={padding}
                 x2={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
                 y2={chartHeight - padding}
-                stroke="#00d4ff"
-                strokeWidth="3"
-                strokeDasharray="8 4"
-                opacity="0.7"
+                stroke="#06b6d4"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                opacity="0.5"
               />
               <text
                 x={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
-                y={-10}
+                y={padding - 10}
                 textAnchor="middle"
-                fill="#00d4ff"
-                fontSize="11"
-                fontWeight="700"
-                fontFamily="'JetBrains Mono', monospace"
-                style={{ background: 'rgba(0, 0, 0, 0.7)' }}
+                fill="#06b6d4"
+                fontSize="10"
+                fontWeight="600"
+                fontFamily="'IBM Plex Mono', monospace"
               >
                 MEDIAN: {formatNumber(medianX)}
               </text>
@@ -291,69 +310,80 @@ export default function BubbleChart({
                 y1={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
                 x2={chartWidth - padding}
                 y2={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
-                stroke="#a855f7"
-                strokeWidth="3"
-                strokeDasharray="8 4"
-                opacity="0.7"
+                stroke="#06b6d4"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                opacity="0.5"
               />
               <text
-                x={chartWidth - padding + 15}
-                y={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding) + 5}
+                x={chartWidth - padding + 10}
+                y={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding) + 4}
                 textAnchor="start"
-                fill="#a855f7"
-                fontSize="12"
-                fontWeight="700"
-                fontFamily="'JetBrains Mono', monospace"
+                fill="#06b6d4"
+                fontSize="10"
+                fontWeight="600"
+                fontFamily="'IBM Plex Mono', monospace"
               >
-                MEDIAN: {formatNumber(medianY)}
+                {formatNumber(medianY)}
               </text>
             </>
           )}
 
           {/* Bubbles */}
-          {bubbles.map((bubble, index) => (
-            <g
-              key={bubble.id}
-              style={{
-                cursor: 'pointer'
-              }}
-              onMouseEnter={() => setHoveredBubble(bubble)}
-              onMouseLeave={() => setHoveredBubble(null)}
-            >
-              {/* Main bubble */}
-              <circle
-                cx={bubble.x}
-                cy={bubble.y}
-                r={bubble.radius}
-                fill={bubble.color}
-                fillOpacity={0.2}
-                stroke={bubble.color}
-                strokeWidth={2}
-                strokeOpacity={1}
-                style={{
-                  cursor: 'pointer'
+          {bubbles.map((bubble) => {
+            const isInCluster = clusteredIds.has(bubble.id);
+            const isHovered = hoveredBubble?.id === bubble.id;
+            return (
+              <g
+                key={bubble.id}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => {
+                  if (!clusterMenu && !pinnedPlayer) setHoveredBubble(bubble);
                 }}
-              />
-            </g>
-          ))}
+                onMouseLeave={() => {
+                  if (!clusterMenu && !pinnedPlayer) setHoveredBubble(null);
+                }}
+                onClick={(e) => handleBubbleClick(bubble, e)}
+              >
+                {/* Invisible larger hit area for easier clicking */}
+                <circle
+                  cx={bubble.x}
+                  cy={bubble.y}
+                  r={Math.max(bubble.radius, MIN_HIT_RADIUS)}
+                  fill="transparent"
+                />
+                {/* Visible bubble */}
+                <circle
+                  cx={bubble.x}
+                  cy={bubble.y}
+                  r={bubble.radius}
+                  fill={bubble.color}
+                  fillOpacity={isHovered ? 0.4 : 0.15}
+                  stroke={bubble.color}
+                  strokeWidth={isHovered ? 2.5 : 1.5}
+                  strokeOpacity={isHovered ? 1 : 0.8}
+                />
+              </g>
+            );
+          })}
 
-          {/* Player name labels for top 25% performers */}
+          {/* Player name labels for top performers */}
           {bubbles.map((bubble) => {
             const isTop25X = top25PercentileX !== undefined && bubble.xVal >= top25PercentileX;
             const isTop25Y = top25PercentileY !== undefined && bubble.yVal >= top25PercentileY;
-            
+
             if (isTop25X || isTop25Y) {
               return (
                 <text
                   key={`label-${bubble.id}`}
                   x={bubble.x}
-                  y={bubble.y + bubble.radius + 12}
+                  y={bubble.y + bubble.radius + 14}
                   textAnchor="middle"
                   fill="#94a3b8"
                   fontSize="9"
                   fontWeight="500"
-                  fontFamily="'JetBrains Mono', monospace"
-                  opacity="0.8"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  opacity="0.7"
                   style={{ pointerEvents: 'none' }}
                 >
                   {bubble.player}
@@ -364,47 +394,89 @@ export default function BubbleChart({
           })}
         </svg>
 
-        {/* Tooltip */}
-        {hoveredBubble && (
-          <div 
-            className="absolute backdrop-blur-xl rounded-lg p-3 z-50 pointer-events-none"
+        {/* Full-screen backdrop to catch outside clicks when menu/card is active */}
+        {isOverlayActive && (
+          <div
+            className="fixed inset-0 z-40"
+            onClick={dismissAll}
+          />
+        )}
+
+        {/* Cluster dropdown menu */}
+        {clusterMenu && (
+          <div
+            className="absolute z-50 rounded-lg overflow-hidden"
             style={{
-              left: hoveredBubble.x > chartWidth - 250 
-                ? `${hoveredBubble.x - hoveredBubble.radius - 195}px` 
-                : `${hoveredBubble.x + hoveredBubble.radius + 105}px`,
-              top: `${hoveredBubble.y - 60}px`,
-              background: 'rgba(10, 14, 26, 0.95)',
-              border: `2px solid ${hoveredBubble.color}`,
-              boxShadow: `0 10px 20px rgba(0, 0, 0, 0.5), 0 0 20px ${hoveredBubble.color}40`,
-              minWidth: '180px'
+              ...getOverlayStyle(clusterMenu.x, clusterMenu.y, 20, 220),
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(16px)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-2 border-b border-white/10">
+              <span className="text-[10px] font-heading text-slate-400 uppercase tracking-wider">
+                {clusterMenu.bubbles.length} overlapping players
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {clusterMenu.bubbles.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => handleClusterSelect(b)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: b.color }}
+                  />
+                  <span className="text-white truncate">{b.player}</span>
+                  <span className="text-[10px] text-slate-500 ml-auto flex-shrink-0">{b.team}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Player stat card — hover for solo dots, click for clustered */}
+        {displayBubble && !clusterMenu && (
+          <div
+            className="absolute backdrop-blur-xl rounded-lg p-4 z-50 pointer-events-none"
+            style={{
+              ...getOverlayStyle(displayBubble.x, displayBubble.y, displayBubble.radius, 220),
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: `1px solid ${displayBubble.color}40`,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              minWidth: '200px'
             }}
           >
-            <div 
-              className="text-sm font-bold mb-1 font-mono"
-              style={{ color: hoveredBubble.color }}
+            <div
+              className="text-base font-heading font-semibold mb-1"
+              style={{ color: displayBubble.color }}
             >
-              {hoveredBubble.player}
-            </div>
-            
-            <div className="text-xs text-slate-400 mb-2 font-mono">
-              {hoveredBubble.team} • {hoveredBubble.position}
+              {displayBubble.player}
             </div>
 
-            <div className="grid gap-1.5">
+            <div className="text-xs text-slate-400 mb-3 font-body">
+              {displayBubble.team} • {displayBubble.position}
+            </div>
+
+            <div className="space-y-2">
               {[
-                { label: formatStatLabel(xStat as string), value: formatNumber(hoveredBubble.xVal), color: '#00d4ff' },
-                { label: formatStatLabel(yStat as string), value: formatNumber(hoveredBubble.yVal), color: '#a855f7' },
-                { label: formatStatLabel(sizeStat as string), value: formatNumber(hoveredBubble.sizeVal), color: '#ff6b6b' }
+                { label: formatStatLabel(xStat as string), value: formatNumber(displayBubble.xVal), color: '#06b6d4' },
+                { label: formatStatLabel(yStat as string), value: formatNumber(displayBubble.yVal), color: '#06b6d4' },
+                { label: formatStatLabel(sizeStat as string), value: formatNumber(displayBubble.sizeVal), color: '#64748b' }
               ].map(stat => (
-                <div 
-                  key={stat.label} 
-                  className="flex justify-between items-center p-1.5 bg-white/5 rounded border border-white/5"
+                <div
+                  key={stat.label}
+                  className="flex justify-between items-center py-1.5 border-b border-white/5"
                 >
-                  <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-semibold">
+                  <span className="text-[10px] text-slate-400 font-heading uppercase tracking-wider">
                     {stat.label}
                   </span>
-                  <span 
-                    className="text-sm font-bold font-mono"
+                  <span
+                    className="text-sm font-heading font-semibold tabular-nums"
                     style={{ color: stat.color }}
                   >
                     {stat.value}
@@ -414,29 +486,25 @@ export default function BubbleChart({
             </div>
           </div>
         )}
+      </div>
 
-        {/* Legend */}
-        <div className="mt-8 flex justify-center gap-8 flex-wrap">
-          {Object.entries(positionColors).map(([pos, color]) => (
-            <div key={pos} className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ background: color }}
-              />
-              <span className="text-sm text-slate-400 font-mono font-medium">
-                {pos}
-              </span>
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-white"/>
-            </div>
-            <span className="text-sm text-slate-400 font-mono font-medium">
-              Size = {formatStatLabel(sizeStat as string)}
+      {/* Legend */}
+      <div className="mt-6 flex justify-center gap-6 flex-wrap">
+        {Object.entries(positionColors).map(([pos, color]) => (
+          <div key={pos} className="flex items-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{
+                background: color,
+                opacity: 0.3,
+                border: `1.5px solid ${color}`
+              }}
+            />
+            <span className="text-xs text-slate-400 font-heading font-medium">
+              {pos}
             </span>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );

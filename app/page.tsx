@@ -1,26 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 
 export default function Home() {
   const queryClient = useQueryClient();
-  const [hasVisited, setHasVisited] = useState(true); // Default true to prevent flash
-
-  useEffect(() => {
-    // Check if user has visited before in this session
-    const visited = sessionStorage.getItem('hasVisitedHome');
-    setHasVisited(!!visited);
-    
-    if (!visited) {
-      sessionStorage.setItem('hasVisitedHome', 'true');
-    }
-  }, []);
 
   // Prefetch player data on mount so it's instant when navigating to analytics/plots
   useEffect(() => {
     queryClient.prefetchQuery({
-      queryKey: ['players', 'v2'], // Match the new cache key
+      queryKey: ['players', 'v2'],
       queryFn: async () => {
         const response = await fetch('/api/players');
         if (!response.ok) throw new Error('Failed to fetch players');
@@ -30,149 +20,127 @@ export default function Home() {
   }, [queryClient]);
 
   return (
-    <div className="relative min-h-screen bg-[#0a0e1a] text-white overflow-hidden">
-      {/* Animated background grid */}
-      <div className={`fixed top-0 left-0 w-full h-full bg-[length:50px_50px] opacity-100 z-0 ${!hasVisited ? 'animate-[gridMove_20s_linear_infinite]' : ''}`}
-           style={{
-             backgroundImage: 'linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px)',
-           }}>
-      </div>
-
-      {/* Gradient orbs */}
-      <div className={`fixed top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full blur-[80px] opacity-30 z-[1] ${!hasVisited ? 'animate-[float_15s_ease-in-out_infinite]' : ''}`}
-           style={{ background: 'radial-gradient(circle, #667eea, transparent)' }}>
-      </div>
-      <div className={`fixed bottom-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full blur-[80px] opacity-30 z-[1] ${!hasVisited ? 'animate-[float_15s_ease-in-out_infinite_3s]' : ''}`}
-           style={{ background: 'radial-gradient(circle, #764ba2, transparent)' }}>
-      </div>
-      <div className={`fixed top-1/2 left-1/2 w-[300px] h-[300px] rounded-full blur-[80px] opacity-30 z-[1] ${!hasVisited ? 'animate-[float_15s_ease-in-out_infinite_6s]' : ''}`}
-           style={{ background: 'radial-gradient(circle, #00d4ff, transparent)' }}>
-      </div>
+    <div className="min-h-screen bg-[#1a1f3a] text-white">
+      {/* Subtle background gradient */}
+      <div className="fixed inset-0 bg-gradient-radial from-[#1a1f3a] via-[#1a1f3a] to-[#151829] pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 container mx-auto px-8 max-w-[1400px] pt-6 pb-4 flex justify-between items-center">
-        <div className="relative">
-          <h1 className="text-2xl font-black tracking-tight">
-            <a href="/" className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
-              FUTPLOT
-            </a>
+      <header className="relative z-10 border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
+          <h1 className="text-2xl font-heading font-bold tracking-tight">
+            FutPlot
           </h1>
-          <div className="absolute bottom-[-4px] left-0 w-[4.1rem] h-[3px] bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+          <nav className="flex gap-8">
+            <Link href="/analytics" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
+              Table Analytics
+            </Link>
+            <Link href="/plots" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
+              Data Visualizations
+            </Link>
+          </nav>
         </div>
-        <nav className="flex gap-6">
-          <a href="/analytics" className="text-slate-400 hover:text-cyan-400 transition-colors text-sm uppercase tracking-wider font-medium">
-            Analytics
-          </a>
-          <a href="/plots" className="text-slate-400 hover:text-cyan-400 transition-colors text-sm uppercase tracking-wider font-medium">
-            Visualizations
-          </a>
-          <a href="#about" className="text-slate-400 hover:text-cyan-400 transition-colors text-sm uppercase tracking-wider font-medium">
-            About
-          </a>
-        </nav>
       </header>
 
-      <div className="container relative z-10 mx-auto px-8 max-w-[1400px] flex flex-col min-h-[calc(100vh-120px)]">
-        <div className="flex-1 flex flex-col justify-center">
-        {/* Hero Section */}
-        <section className={`text-center pt-12 pb-6 ${!hasVisited ? 'animate-[fadeInUp_1s_ease-out_0.2s_both]' : ''}`}>
-          <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-4 tracking-tight">
-            Football Analytics<br />
-            <span className="bg-gradient-to-r from-[#00d4ff] to-[#a855f7] bg-clip-text text-transparent">
-              Redefined
-            </span>
-          </h2>
-          <p className="text-lg md:text-xl text-slate-300 max-w-[700px] mx-auto mb-6 leading-relaxed tracking-wide font-light font-sans">
-            Explore player performance from Europe&apos;s top 5 leagues through 
-            interactive visualizations and advanced metrics. Data-driven insights 
-            for the modern game.
-          </p>
-        </section>
+      {/* Main Content */}
+      <main className="relative z-10">
+        <div className="max-w-7xl mx-auto px-6 py-20">
+          {/* Hero Section */}
+          <section className="text-center mb-20">
+            <h2 className="text-6xl md:text-7xl font-heading font-bold mb-6 tracking-tight">
+              Football Analytics<br />
+              <span className="text-cyan-400">Redefined</span>
+            </h2>
+            <p className="text-lg text-slate-300 max-w-2xl mx-auto mb-12 leading-relaxed font-light">
+              Explore player performance from Europe&apos;s top 5 leagues through
+              interactive visualizations and advanced metrics. Data-driven insights
+              for the modern game.
+            </p>
 
-        {/* Navigation Buttons */}
-        <section className={`my-10 ${!hasVisited ? 'animate-[fadeInUp_1s_ease-out_0.6s_both]' : ''}`}>
-          <div className="flex flex-col md:flex-row justify-center gap-5 max-w-[700px] mx-auto">
-            <a
-              href="/analytics"
-              className="flex-1 px-8 py-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white text-lg font-medium rounded-lg border border-slate-700/50 text-center transition-all duration-300 tracking-wide hover:border-cyan-400/50 hover:shadow-[0_8px_30px_rgba(6,182,212,0.3)] hover:scale-[1.02] backdrop-blur-sm font-mono uppercase"
-            >
-              Analytics
-            </a>
-            <a
-              href="/plots"
-              className="flex-1 px-8 py-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white text-lg font-medium rounded-lg border border-slate-700/50 text-center transition-all duration-300 tracking-wide hover:border-purple-400/50 hover:shadow-[0_8px_30px_rgba(168,85,247,0.3)] hover:scale-[1.02] backdrop-blur-sm font-mono uppercase"
-            >
-              Visualizations
-            </a>
-          </div>
-        </section>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto">
+              <Link
+                href="/analytics"
+                className="flex-1 px-8 py-4 bg-white/10 hover:bg-white/15 text-white font-heading font-semibold rounded-lg border border-white/10 hover:border-cyan-400/50 transition-all duration-200 text-center"
+              >
+                Table Analytics
+              </Link>
+              <Link
+                href="/plots"
+                className="flex-1 px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white font-heading font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/20 text-center"
+              >
+                Data Visualizations
+              </Link>
+            </div>
+          </section>
 
-        {/* Stats Section */}
-        <section className={`my-8 ${!hasVisited ? 'animate-[fadeInUp_1s_ease-out_0.8s_both]' : ''}`}>
-          <div className="flex flex-wrap justify-center gap-6 md:gap-10 text-center">
-            <div className="px-4">
-              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#a855f7] bg-clip-text text-transparent mb-2">
-                2,500+
-              </div>
-              <div className="text-slate-400 text-base uppercase tracking-wider">
-                Players
-              </div>
+          {/* Key Features Grid */}
+          <section className="mb-12">
+            <h3 className="text-sm font-heading font-semibold text-slate-400 uppercase tracking-wider mb-8 text-center">
+              Key Features
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+              {[
+                {
+                  title: '2,500+ Players',
+                  description: 'Comprehensive data coverage across all positions',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: '5 Elite Leagues',
+                  description: 'Premier League, La Liga, Serie A, Bundesliga, Ligue 1',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: '15+ Metrics',
+                  description: 'Goals, xG, assists, shots, key passes, and more',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: 'Updated Weekly',
+                  description: 'Fresh data refreshed every week throughout the season',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ),
+                },
+              ].map((feature, index) => (
+                <div
+                  key={index}
+                  className="p-6 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 hover:border-cyan-400/30 transition-all duration-200"
+                >
+                  <div className="text-cyan-400 mb-4">{feature.icon}</div>
+                  <h4 className="text-lg font-heading font-semibold mb-2">
+                    {feature.title}
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="px-4">
-              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#a855f7] bg-clip-text text-transparent mb-2">
-                5
-              </div>
-              <div className="text-slate-400 text-base uppercase tracking-wider">
-                Leagues
-              </div>
+
+            {/* Footer */}
+            <div className="text-center py-8 border-t border-white/10">
+              <p className="text-sm text-slate-400">
+                &copy; 2026 FutPlot. Elevating football analytics through data visualization.
+              </p>
             </div>
-            <div className="px-4">
-              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#a855f7] bg-clip-text text-transparent mb-2">
-                15+
-              </div>
-              <div className="text-slate-400 text-base uppercase tracking-wider">
-                Metrics
-              </div>
-            </div>
-            <div className="px-4">
-              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#a855f7] bg-clip-text text-transparent mb-2">
-                Weekly
-              </div>
-              <div className="text-slate-400 text-base uppercase tracking-wider">
-                Updates
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
         </div>
-
-        {/* Footer */}
-        <footer className="text-center py-6 border-t border-[#00d4ff]/10 text-slate-400">
-          <p className="text-sm">&copy; 2026 FutPlot. Elevating football analytics through data visualization.</p>
-        </footer>
-      </div>
-
-      <style jsx>{`
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -30px) scale(1.1); }
-          66% { transform: translate(-30px, 30px) scale(0.9); }
-        }
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      </main>
     </div>
   );
 }
