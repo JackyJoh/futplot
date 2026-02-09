@@ -7,12 +7,8 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'ALLOWALL',
-          },
-          {
             key: 'Content-Security-Policy',
-            value: 'frame-ancestors https://jackyjoh.com',
+            value: 'frame-ancestors https://jackyjoh.com http://localhost:3000 http://localhost',
           },
         ],
       },
