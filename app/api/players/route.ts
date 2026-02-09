@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Pool } from '@neondatabase/serverless'
 
-// Cache for 24 hours (data updates weekly)
-export const revalidate = 86400; // 24 hours in seconds
+// Cache for 1 hour (data updates weekly)
+export const revalidate = 3600;
 
 // Function to normalize position codes to simple categories
 function normalizePosition(positionCode: string): string {
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     // Return with aggressive cache headers (1 hour public cache, revalidate every 24 hours)
     return NextResponse.json(players, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600',
       },
     })
   } catch (error) {
