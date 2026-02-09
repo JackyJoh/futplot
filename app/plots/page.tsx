@@ -74,7 +74,11 @@ export default function PlotsPage() {
     const xStats = coreStats[xStatId] || [];
     const yStats = coreStats[yStatId] || [];
     const allStats = [...xStats, ...yStats];
-    return allStats.reduce((sum, stat) => sum + Math.abs(player[stat] ?? 0), 0);
+    // Only include stat keys that exist on Player
+    const playerKeys = Object.keys(player) as (keyof Player)[];
+    return allStats
+      .filter((stat): stat is keyof Player => playerKeys.includes(stat as keyof Player))
+      .reduce((sum, stat) => sum + Math.abs(Number(player[stat as keyof Player]) || 0), 0);
   }
 
   const topPlayers = [...baseFilteredPlayers]
