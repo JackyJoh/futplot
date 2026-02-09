@@ -50,6 +50,7 @@ scripts/.env
 
 # Ignore .claude folder
 .claude/
+BRAND.md
 
 
 *.csv
