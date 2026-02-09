@@ -73,7 +73,7 @@ def scrape_player_data():
 def connect_db():
     """Connect to Neon DB"""
     try:
-        conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+        conn = psycopg2.connect(os.getenv('DATABASE_URL', '').strip())
         print("Connected to DB")
         return conn
     except Exception as e:
