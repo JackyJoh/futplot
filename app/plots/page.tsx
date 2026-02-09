@@ -4,62 +4,38 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import BubbleChart from '@/components/BubbleChart';
 import Link from 'next/link';
-
-interface Player {
-  id: number;
-  player: string;
-  team: string;
-  league: string;
-  position: string;
-  matches: number;
-  minutes: number;
-  goals: number;
-  assists: number;
-  xg: number;
-  xa: number;
-  np_goals: number;
-  np_xg: number;
-  penalties: number;
-  shots: number;
-  key_passes: number;
-  xg_chain: number;
-  xg_buildup: number;
-  goals_per90: number;
-  assists_per90: number;
-  xg_per90: number;
-  xa_per90: number;
-  'G+A': number;
-  'npG+A': number;
-}
-
-const statOptions = [
-  { value: 'goals', label: 'Goals' },
-  { value: 'assists', label: 'Assists' },
-  { value: 'G+A', label: 'G+A' },
-  { value: 'npG+A', label: 'npG+A' },
-  { value: 'xg', label: 'xG' },
-  { value: 'xa', label: 'xA' },
-  { value: 'np_goals', label: 'Non-Penalty Goals' },
-  { value: 'np_xg', label: 'Non-Penalty xG' },
-  { value: 'shots', label: 'Shots' },
-  { value: 'key_passes', label: 'Key Passes' },
-  { value: 'minutes', label: 'Minutes' },
-  { value: 'goals_per90', label: 'Goals per 90' },
-  { value: 'assists_per90', label: 'Assists per 90' },
-  { value: 'xg_per90', label: 'xG per 90' },
-  { value: 'xa_per90', label: 'xA per 90' },
-  { value: 'xg_chain', label: 'xG Chain' },
-  { value: 'xg_buildup', label: 'xG Buildup' },
-];
+import { Player, rawMetrics, axisMetrics, getMetric, AxisInsight } from '@/lib/metrics';
 
 export default function PlotsPage() {
   const [league, setLeague] = useState<string>('all');
-  const [position, setPosition] = useState<string>('FWD');
+  const [position, setPosition] = useState<string>('FWD+MID');
   const [minGames, setMinGames] = useState<number>(5);
-  const [percentile, setPercentile] = useState<number>(75);
-  const [xStat, setXStat] = useState<keyof Player>('xg');
-  const [yStat, setYStat] = useState<keyof Player>('xa');
-  const [sizeStat, setSizeStat] = useState<keyof Player>('minutes');
+  const [topCount, setTopCount] = useState<number>(50);
+  const [xStatId, setXStatId] = useState<string>('goals_minus_xg');
+  const [yStatId, setYStatId] = useState<string>('assists_minus_xa');
+  const [sizeStatId, setSizeStatId] = useState<string>('minutes');
+
+  const xMetric = getMetric(xStatId);
+  const yMetric = getMetric(yStatId);
+  const sizeMetric = getMetric(sizeStatId);
+
+  // Temp hardcoded insights — will be replaced by Gemini API call
+  const tempInsights: Record<string, AxisInsight> = {
+    'goals_minus_xg': { positive: 'Clinical', negative: 'Wasteful' },
+    'assists_minus_xa': { positive: 'Creative', negative: 'Underperforming' },
+    'npgoals_minus_npxg': { positive: 'Clinical', negative: 'Wasteful' },
+    'gper90_minus_xgper90': { positive: 'Clinical', negative: 'Wasteful' },
+    'aper90_minus_xaper90': { positive: 'Creative', negative: 'Underperforming' },
+    'npga_minus_npxgxa': { positive: 'Overperforming', negative: 'Underperforming' },
+    'xg_minus_xa': { positive: 'Goal Threat', negative: 'Playmaker' },
+    'goals_minus_assists': { positive: 'Scorer', negative: 'Provider' },
+    'shots/goals': { positive: 'Inefficient', negative: 'Efficient' },
+    'keypasses/assists': { positive: 'Unlucky', negative: 'Efficient' },
+    'minutes_per_match': { positive: 'Starter', negative: 'Rotation' },
+  };
+
+  const xInsight = tempInsights[xStatId];
+  const yInsight = tempInsights[yStatId];
 
   const { data: players = [], isLoading } = useQuery<Player[]>({
     queryKey: ['players', 'v2'],
@@ -83,41 +59,58 @@ export default function PlotsPage() {
     return true;
   });
 
-  // Calculate percentile thresholds
-  const xValuesForPercentile = baseFilteredPlayers.map(p => Number(p[xStat]) || 0).sort((a, b) => a - b);
-  const yValuesForPercentile = baseFilteredPlayers.map(p => Number(p[yStat]) || 0).sort((a, b) => a - b);
-  const percentileIndex = Math.floor(xValuesForPercentile.length * (1 - percentile / 100));
-  const xPercentileThreshold = xValuesForPercentile.length > 0 ? xValuesForPercentile[percentileIndex] : 0;
-  const yPercentileThreshold = yValuesForPercentile.length > 0 ? yValuesForPercentile[percentileIndex] : 0;
+  // Limit to top N players by sum of absolute values of core stats used in axis metrics
+  function getCoreStatsSum(player: Player) {
+    const coreStats: Record<string, [string, string]> = {
+      'goals_minus_xg': ['goals', 'xg'],
+      'assists_minus_xa': ['assists', 'xa'],
+      'npgoals_minus_npxg': ['np_goals', 'np_xg'],
+      'gper90_minus_xgper90': ['goals_per90', 'xg_per90'],
+      'aper90_minus_xaper90': ['assists_per90', 'xa_per90'],
+      'npga_minus_npxgxa': ['npG+A', 'np_xg'],
+      'xg_minus_xa': ['xg', 'xa'],
+      'goals_minus_assists': ['goals', 'assists'],
+    };
+    const xStats = coreStats[xStatId] || [];
+    const yStats = coreStats[yStatId] || [];
+    const allStats = [...xStats, ...yStats];
+    return allStats.reduce((sum, stat) => sum + Math.abs(player[stat] ?? 0), 0);
+  }
 
-  // Apply all filters including percentile
-  const filteredPlayers = baseFilteredPlayers.filter(player => {
-    const xValue = Number(player[xStat]) || 0;
-    const yValue = Number(player[yStat]) || 0;
-    if (xValue < xPercentileThreshold) return false;
-    if (yValue < yPercentileThreshold) return false;
-    return true;
-  });
+  const topPlayers = [...baseFilteredPlayers]
+    .sort((a, b) => getCoreStatsSum(b) - getCoreStatsSum(a))
+    .slice(0, topCount);
 
   const leagues = ['ENG-Premier League', 'ESP-La Liga', 'GER-Bundesliga', 'ITA-Serie A', 'FRA-Ligue 1'];
   const positions = ['FWD', 'MID', 'FWD+MID', 'DEF', 'GK'];
 
   // Calculate median values for reference lines
-  const xValues = filteredPlayers.map(p => Number(p[xStat]) || 0).sort((a, b) => a - b);
-  const yValues = filteredPlayers.map(p => Number(p[yStat]) || 0).sort((a, b) => a - b);
+  const xValues = baseFilteredPlayers.map(p => xMetric.getValue(p)).sort((a, b) => a - b);
+  const yValues = baseFilteredPlayers.map(p => yMetric.getValue(p)).sort((a, b) => a - b);
   const medianX = xValues.length > 0 ? xValues[Math.floor(xValues.length / 2)] : 0;
   const medianY = yValues.length > 0 ? yValues[Math.floor(yValues.length / 2)] : 0;
 
-  // Calculate dynamic label threshold
-  const labelPercentile = 95 - (100 - percentile) * 0.2;
-  const labelThresholdX = xValues.length > 0 ? xValues[Math.floor(xValues.length * (labelPercentile / 100))] : 0;
-  const labelThresholdY = yValues.length > 0 ? yValues[Math.floor(yValues.length * (labelPercentile / 100))] : 0;
+  const isConversionX = xMetric.id === 'shots/goals' || xMetric.id === 'keypasses/assists';
+  const isConversionY = yMetric.id === 'shots/goals' || yMetric.id === 'keypasses/assists';
+
+  // For conversion metrics, use 10th percentile (closer to 0 is better)
+  // For other stats, use 95th percentile (higher is better)
+  const labelThresholdX = xValues.length > 0
+    ? (isConversionX
+        ? xValues[Math.floor(xValues.length * 0.60)]
+        : xValues[Math.floor(xValues.length * 0.93)])
+    : 0;
+  const labelThresholdY = yValues.length > 0
+    ? (isConversionY
+        ? yValues[Math.floor(yValues.length * 0.60)]
+        : yValues[Math.floor(yValues.length * 0.93)])
+    : 0;
 
   return (
-    <div className="min-h-screen bg-[#1a1f3a] text-white">
+    <div className="h-screen flex flex-col bg-[#1a1f3a] text-white overflow-hidden">
       {/* Header */}
-      <header className="border-b border-white/10 sticky top-0 z-50 bg-[#1a1f3a]/95 backdrop-blur-sm">
-        <div className="px-6 py-4 flex justify-between items-center">
+      <header className="border-b border-white/10 flex-shrink-0 bg-[#1a1f3a]/95 backdrop-blur-sm">
+        <div className="px-6 py-3 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-heading font-bold tracking-tight">
               FutPlot
@@ -137,10 +130,10 @@ export default function PlotsPage() {
       </header>
 
       {/* Main Content */}
-      <div className="px-6 py-8">
-        <div className="flex gap-6">
+      <div className="flex-1 min-h-0 px-6 py-4">
+        <div className="flex gap-6 h-full">
           {/* Left Sidebar - Filters */}
-          <aside className="w-56 flex-shrink-0 space-y-6">
+          <aside className="w-56 flex-shrink-0 space-y-6 overflow-y-auto">
             {/* League Filter */}
             <div>
               <h3 className="text-xs font-heading font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -189,23 +182,23 @@ export default function PlotsPage() {
               />
             </div>
 
-            {/* Percentile Filter */}
+            {/* Top N Filter */}
             <div>
               <h3 className="text-xs font-heading font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Top Percentile
+                Top Players
               </h3>
               <div className="flex items-center gap-3">
                 <input
                   type="range"
-                  value={percentile}
-                  onChange={(e) => setPercentile(parseInt(e.target.value))}
+                  value={topCount}
+                  onChange={(e) => setTopCount(parseInt(e.target.value))}
                   className="flex-1"
-                  min="0"
+                  min="5"
                   max="100"
-                  step="5"
+                  step="1"
                 />
                 <span className="text-cyan-400 font-heading font-bold text-sm w-12 text-right tabular-nums">
-                  {percentile}%
+                  {topCount}
                 </span>
               </div>
             </div>
@@ -222,12 +215,12 @@ export default function PlotsPage() {
                     X-Axis
                   </label>
                   <select
-                    value={xStat}
-                    onChange={(e) => setXStat(e.target.value as keyof Player)}
+                    value={xStatId}
+                    onChange={(e) => setXStatId(e.target.value)}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400 transition-colors"
                   >
-                    {statOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    {axisMetrics.map(m => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </select>
                 </div>
@@ -238,28 +231,28 @@ export default function PlotsPage() {
                     Y-Axis
                   </label>
                   <select
-                    value={yStat}
-                    onChange={(e) => setYStat(e.target.value as keyof Player)}
+                    value={yStatId}
+                    onChange={(e) => setYStatId(e.target.value)}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400 transition-colors"
                   >
-                    {statOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    {axisMetrics.map(m => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Size */}
+                {/* Size — raw metrics only */}
                 <div>
                   <label className="block text-xs text-slate-500 mb-2 uppercase tracking-wider">
                     Bubble Size
                   </label>
                   <select
-                    value={sizeStat}
-                    onChange={(e) => setSizeStat(e.target.value as keyof Player)}
+                    value={sizeStatId}
+                    onChange={(e) => setSizeStatId(e.target.value)}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400 transition-colors"
                   >
-                    {statOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    {rawMetrics.map(m => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
                     ))}
                   </select>
                 </div>
@@ -269,13 +262,13 @@ export default function PlotsPage() {
             {/* Stats */}
             <div className="pt-6 border-t border-white/10">
               <p className="text-xs text-slate-400">
-                {filteredPlayers.length} of {players.length} players
+                {baseFilteredPlayers.length} of {players.length} players
               </p>
             </div>
           </aside>
 
           {/* Center - Bubble Chart */}
-          <div className="flex-1">
+          <div className="flex-1 min-h-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-96 bg-white/5 rounded-lg border border-white/10">
                 <div className="flex flex-col items-center">
@@ -285,14 +278,16 @@ export default function PlotsPage() {
               </div>
             ) : (
               <BubbleChart
-                players={filteredPlayers}
-                xStat={xStat}
-                yStat={yStat}
-                sizeStat={sizeStat}
+                players={topPlayers}
+                xMetric={xMetric}
+                yMetric={yMetric}
+                sizeMetric={sizeMetric}
                 medianX={medianX}
                 medianY={medianY}
                 top25PercentileX={labelThresholdX}
                 top25PercentileY={labelThresholdY}
+                xInsight={xInsight}
+                yInsight={yInsight}
               />
             )}
           </div>

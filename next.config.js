@@ -8,7 +8,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: 'frame-ancestors https://jackyjoh.com http://localhost:3000 http://localhost',
+            value: 'frame-ancestors https://jackyjoh.com https://www.jackyjoh.com http://localhost:3000 http://localhost',
           },
         ],
       },

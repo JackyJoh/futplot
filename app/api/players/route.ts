@@ -4,21 +4,26 @@ import { Pool } from '@neondatabase/serverless'
 // Cache for 1 hour (data updates weekly)
 export const revalidate = 3600;
 
+let cache: { data: any, timestamp: number} | null = null;
+const CACHE_DURATION = 3600 * 1000 // 1 hour in milliseconds
+
+
 // Function to normalize position codes to simple categories
 function normalizePosition(positionCode: string): string {
   const code = positionCode.trim().toUpperCase();
   
   // Goalkeeper
   if (code.includes('GK')) return 'GK';
+
+  // Midfielders - any position with M, or just S
+  // Prioritize midfield classification above defense
+  if (code.includes('M') || code === 'S') return 'MID';
   
   // Defenders - any position with D
   if (code.includes('D')) return 'DEF';
   
   // Forwards - any position with F but not D
   if (code.includes('F') && !code.includes('D')) return 'FWD';
-  
-  // Midfielders - any position with M, or just S
-  if (code.includes('M') || code === 'S') return 'MID';
   
   // Default to MID for unknown positions
   return 'MID';
@@ -41,6 +46,16 @@ pool.on('error', (err: any) => {
 })
 
 export async function GET(request: Request) {
+  const now = Date.now()
+  // Check cache
+  if (cache && now - cache.timestamp < CACHE_DURATION) {
+    return NextResponse.json(cache.data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600',
+      },
+    })
+  }
+
   try {
     console.log('Attempting database query...')
     

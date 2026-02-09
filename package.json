@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@neondatabase/serverless": "^1.0.2",
     "@nivo/core": "^0.87.0",
     "@nivo/scatterplot": "^0.87.0",
@@ -16,6 +17,7 @@
     "@vercel/analytics": "^1.6.1",
     "lucide-react": "^0.462.0",
     "next": "^15.1.0",
+    "node-fetch": "^3.3.2",
     "pg": "^8.13.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

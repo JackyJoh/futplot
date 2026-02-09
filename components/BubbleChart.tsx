@@ -1,44 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-
-interface Player {
-  id: number;
-  player: string;
-  team: string;
-  league: string;
-  position: string;
-  matches: number;
-  minutes: number;
-  goals: number;
-  assists: number;
-  xg: number;
-  xa: number;
-  np_goals: number;
-  np_xg: number;
-  penalties: number;
-  shots: number;
-  key_passes: number;
-  xg_chain: number;
-  xg_buildup: number;
-  goals_per90: number;
-  assists_per90: number;
-  xg_per90: number;
-  xa_per90: number;
-  'G+A': number;
-  'npG+A': number;
-}
+import { Player, MetricConfig, MetricType, AxisInsight } from '@/lib/metrics';
 
 interface BubbleChartProps {
   players: Player[];
-  xStat: keyof Player;
-  yStat: keyof Player;
-  sizeStat: keyof Player;
-  colorBy?: 'position' | 'team';
+  xMetric: MetricConfig;
+  yMetric: MetricConfig;
+  sizeMetric: MetricConfig;
   medianX?: number;
   medianY?: number;
   top25PercentileX?: number;
   top25PercentileY?: number;
+  xInsight?: AxisInsight;
+  yInsight?: AxisInsight;
 }
 
 const positionColors: Record<string, string> = {
@@ -51,42 +26,81 @@ const positionColors: Record<string, string> = {
 const OVERLAP_THRESHOLD = 12;
 const MIN_HIT_RADIUS = 14;
 
+function getAxisRange(values: number[], type: MetricType, id?: string): { min: number; max: number } {
+  // For stats that are always non-negative, set origin to 0
+  const alwaysPositive = [
+    'goals', 'assists', 'G+A', 'npG+A', 'xg', 'xa', 'np_goals', 'np_xg', 'shots', 'key_passes', 'minutes',
+    'goals_per90', 'assists_per90', 'xg_per90', 'xa_per90', 'xg_chain', 'xg_buildup', 'minutes_per_match', 'shots/goals', 'keypasses/assists'
+  ];
+  if (type === 'raw' || (id && alwaysPositive.includes(id))) {
+    return { min: 0, max: Math.max(...values, 1) };
+  }
+  const absMax = Math.max(
+    Math.abs(Math.min(...values, 0)),
+    Math.abs(Math.max(...values, 0)),
+    0.1
+  );
+  return { min: -absMax, max: absMax };
+}
+
 export default function BubbleChart({
   players,
-  xStat,
-  yStat,
-  sizeStat,
+  xMetric,
+  yMetric,
+  sizeMetric,
   medianX,
   medianY,
   top25PercentileX,
-  top25PercentileY
+  top25PercentileY,
+  xInsight,
+  yInsight
 }: BubbleChartProps) {
   const [hoveredBubble, setHoveredBubble] = useState<any>(null);
   const [clusterMenu, setClusterMenu] = useState<{ bubbles: any[]; x: number; y: number } | null>(null);
   const [pinnedPlayer, setPinnedPlayer] = useState<any>(null);
 
-  // Chart dimensions
+  // Filter out players with zero values for conversion metrics
+  const isConversionX = xMetric.id === 'keypasses/assists' || xMetric.id === 'shots/goals';
+  const isConversionY = yMetric.id === 'keypasses/assists' || yMetric.id === 'shots/goals';
+  const filteredPlayers = (isConversionX || isConversionY)
+    ? players.filter(p => {
+        if (isConversionX && xMetric.getValue(p) <= 0) return false;
+        if (isConversionY && yMetric.getValue(p) <= 0) return false;
+        return true;
+      })
+    : players;
+
+  // Chart dimensions (viewBox coordinates — SVG scales to fill container)
   const chartWidth = 1200;
-  const chartHeight = 600;
-  const padding = 80;
+  const chartHeight = 700;
+  const padding = { top: 40, right: 10, bottom: 50, left: 10 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
 
   // Get stat values
-  const xValues = players.map(p => Number(p[xStat]) || 0);
-  const yValues = players.map(p => Number(p[yStat]) || 0);
-  const sizeValues = players.map(p => Number(p[sizeStat]) || 0);
+  const xValues = filteredPlayers.map(p => xMetric.getValue(p));
+  const yValues = filteredPlayers.map(p => yMetric.getValue(p));
+  const sizeValues = filteredPlayers.map(p => sizeMetric.getValue(p));
 
-  const maxX = Math.max(...xValues, 1);
-  const maxY = Math.max(...yValues, 1);
+  const xRange = getAxisRange(xValues, xMetric.type, xMetric.id);
+  const yRange = getAxisRange(yValues, yMetric.type, yMetric.id);
   const maxSize = Math.max(...sizeValues, 1);
 
-  // Calculate bubble positions and sizes
-  const bubbles = players.map((player) => {
-    const xVal = Number(player[xStat]) || 0;
-    const yVal = Number(player[yStat]) || 0;
-    const sizeVal = Number(player[sizeStat]) || 0;
+  // Scaling helpers
+  const scaleX = (val: number) =>
+    ((val - xRange.min) / (xRange.max - xRange.min)) * plotWidth + padding.left;
 
-    const x = (xVal / maxX) * (chartWidth - 2 * padding) + padding;
-    const y = chartHeight - ((yVal / maxY) * (chartHeight - 2 * padding) + padding);
+  const scaleY = (val: number) =>
+    chartHeight - (((val - yRange.min) / (yRange.max - yRange.min)) * plotHeight + padding.bottom);
+
+  // Calculate bubble positions and sizes
+  const bubbles = filteredPlayers.map((player) => {
+    const xVal = xMetric.getValue(player);
+    const yVal = yMetric.getValue(player);
+    const sizeVal = sizeMetric.getValue(player);
+
+    const x = scaleX(xVal);
+    const y = scaleY(yVal);
     const radius = Math.max(4, (sizeVal / maxSize) * 18 + 4);
 
     const color = positionColors[player.position] || '#94a3b8';
@@ -146,19 +160,14 @@ export default function BubbleChart({
   // Clear state when data/axes change
   useEffect(() => {
     dismissAll();
-  }, [xStat, yStat, sizeStat, players.length]);
-
-  // Format stat label
-  const formatStatLabel = (stat: string) => {
-    return stat.replace(/_/g, ' ').toUpperCase();
-  };
+  }, [xMetric.id, yMetric.id, sizeMetric.id, players.length]);
 
   // Format number for display
   const formatNumber = (value: number) => {
     return value % 1 === 0 ? value : value.toFixed(1);
   };
 
-  // Position an overlay next to an anchor point, offset by radius
+  // Position an overlay next to an anchor point using percentages (viewBox-relative)
   const getOverlayStyle = (anchorX: number, anchorY: number, anchorR: number, overlayWidth: number) => {
     const gap = 14;
     let left: number;
@@ -170,7 +179,10 @@ export default function BubbleChart({
     let top = anchorY - 50;
     if (top < 0) top = 4;
     if (top + 220 > chartHeight + 40) top = chartHeight + 40 - 220;
-    return { left: `${left}px`, top: `${top}px` };
+    return {
+      left: `${(left / chartWidth) * 100}%`,
+      top: `${(top / chartHeight) * 100}%`,
+    };
   };
 
   // Show stat card for: pinned player (click), or hovered non-clustered bubble
@@ -181,157 +193,234 @@ export default function BubbleChart({
 
   const isOverlayActive = !!(clusterMenu || pinnedPlayer);
 
+  // Grid values: 5 evenly spaced across axis range
+  const xGridValues = [0, 0.25, 0.5, 0.75, 1].map(f => xRange.min + f * (xRange.max - xRange.min));
+  const yGridValues = [0, 0.25, 0.5, 0.75, 1].map(f => yRange.min + f * (yRange.max - yRange.min));
+
+  // Divider line config
+  const xDividerValue = xMetric.type === 'differential' ? 0 : medianX;
+  const yDividerValue = yMetric.type === 'differential' ? 0 : medianY;
+  const xDividerLabel = xMetric.type === 'differential' ? '0' : (medianX !== undefined ? `MEDIAN: ${formatNumber(medianX)}` : '');
+  const yDividerLabel = yMetric.type === 'differential' ? '0' : (medianY !== undefined ? `${formatNumber(medianY)}` : '');
+
   return (
-    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-8">
-      {/* SVG wrapper — w-fit so SVG coords map directly to absolute positioning */}
-      <div className="relative w-fit mx-auto">
+    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 h-full flex flex-col">
+      {/* SVG wrapper — responsive, fills available space */}
+      <div className="relative w-full flex-1 min-h-0">
         <svg
-          width={chartWidth}
-          height={chartHeight}
-          className="block overflow-visible"
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="block w-full h-full overflow-visible"
           onClick={dismissAll}
         >
           {/* Invisible background to catch clicks on empty chart space */}
           <rect x={0} y={0} width={chartWidth} height={chartHeight} fill="transparent" />
 
           {/* Vertical grid lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map(fraction => {
-            const val = maxX * fraction;
-            return (
-              <g key={`v-${fraction}`}>
-                <line
-                  x1={fraction * (chartWidth - 2 * padding) + padding}
-                  y1={padding}
-                  x2={fraction * (chartWidth - 2 * padding) + padding}
-                  y2={chartHeight - padding}
-                  stroke="rgba(255, 255, 255, 0.1)"
-                  strokeWidth="1"
-                />
-                <text
-                  x={fraction * (chartWidth - 2 * padding) + padding}
-                  y={chartHeight - padding + 20}
-                  textAnchor="middle"
-                  fill="#64748b"
-                  fontSize="11"
-                  fontFamily="'IBM Plex Mono', monospace"
-                  className="tabular-nums"
-                >
-                  {formatNumber(val)}
-                </text>
-              </g>
-            );
-          })}
+          {xGridValues.map((val, i) => (
+            <g key={`v-${i}`}>
+              <line
+                x1={scaleX(val)}
+                y1={padding.top}
+                x2={scaleX(val)}
+                y2={chartHeight - padding.bottom}
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth="1"
+              />
+              <text
+                x={scaleX(val)}
+                y={chartHeight - padding.bottom + 20}
+                textAnchor="middle"
+                fill="#64748b"
+                fontSize="11"
+                fontFamily="'IBM Plex Mono', monospace"
+                className="tabular-nums"
+              >
+                {formatNumber(val)}
+              </text>
+            </g>
+          ))}
 
           {/* Horizontal grid lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map(fraction => {
-            const val = maxY * fraction;
-            return (
-              <g key={`h-${fraction}`}>
-                <line
-                  x1={padding}
-                  y1={chartHeight - (fraction * (chartHeight - 2 * padding) + padding)}
-                  x2={chartWidth - padding}
-                  y2={chartHeight - (fraction * (chartHeight - 2 * padding) + padding)}
-                  stroke="rgba(255, 255, 255, 0.1)"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padding - 12}
-                  y={chartHeight - (fraction * (chartHeight - 2 * padding) + padding) + 4}
-                  textAnchor="end"
-                  fill="#64748b"
-                  fontSize="11"
-                  fontFamily="'IBM Plex Mono', monospace"
-                  className="tabular-nums"
-                >
-                  {formatNumber(val)}
-                </text>
-              </g>
-            );
-          })}
+          {yGridValues.map((val, i) => (
+            <g key={`h-${i}`}>
+              <line
+                x1={padding.left}
+                y1={scaleY(val)}
+                x2={chartWidth - padding.right}
+                y2={scaleY(val)}
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth="1"
+              />
+              <text
+                x={padding.left - 12}
+                y={scaleY(val) + 4}
+                textAnchor="end"
+                fill="#64748b"
+                fontSize="11"
+                fontFamily="'IBM Plex Mono', monospace"
+                className="tabular-nums"
+              >
+                {formatNumber(val)}
+              </text>
+            </g>
+          ))}
 
           {/* Axis labels */}
           <text
             x={chartWidth / 2}
-            y={chartHeight - 15}
+            y={chartHeight - 5}
             textAnchor="middle"
-            fill="#06b6d4"
-            fontSize="12"
-            fontWeight="600"
+            fill="#ffffff"
+            fontSize="15"
+            fontWeight="700"
             fontFamily="'IBM Plex Mono', monospace"
-            letterSpacing="1px"
+            letterSpacing="1.5px"
           >
-            {formatStatLabel(xStat as string)}
+            {xMetric.label.toUpperCase()}
           </text>
           <text
-            x={15}
+            x={4}
             y={chartHeight / 2}
             textAnchor="middle"
-            fill="#06b6d4"
-            fontSize="12"
-            fontWeight="600"
+            fill="#ffffff"
+            fontSize="15"
+            fontWeight="700"
             fontFamily="'IBM Plex Mono', monospace"
-            letterSpacing="1px"
-            transform={`rotate(-90, 15, ${chartHeight / 2})`}
+            letterSpacing="1.5px"
+            transform={`rotate(-90, -10, ${chartHeight / 2 + 30})`}
           >
-            {formatStatLabel(yStat as string)}
+            {yMetric.label.toUpperCase()}
           </text>
 
-          {/* Median Lines */}
-          {medianX !== undefined && medianX !== null && maxX > 0 && (
+          {/* Divider Lines (0-line for differential, median for raw) */}
+          {xDividerValue !== undefined && xDividerValue !== null && (
             <>
               <line
-                x1={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
-                y1={padding}
-                x2={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
-                y2={chartHeight - padding}
+                x1={scaleX(xDividerValue)}
+                y1={padding.top}
+                x2={scaleX(xDividerValue)}
+                y2={chartHeight - padding.bottom}
                 stroke="#06b6d4"
                 strokeWidth="1.5"
                 strokeDasharray="4 4"
                 opacity="0.5"
               />
               <text
-                x={(medianX / maxX) * (chartWidth - 2 * padding) + padding}
-                y={padding - 10}
+                x={scaleX(xDividerValue)}
+                y={padding.top - 10}
                 textAnchor="middle"
                 fill="#06b6d4"
                 fontSize="10"
                 fontWeight="600"
                 fontFamily="'IBM Plex Mono', monospace"
               >
-                MEDIAN: {formatNumber(medianX)}
+                {xDividerLabel}
               </text>
             </>
           )}
-          {medianY !== undefined && medianY !== null && maxY > 0 && (
+          {yDividerValue !== undefined && yDividerValue !== null && (
             <>
               <line
-                x1={padding}
-                y1={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
-                x2={chartWidth - padding}
-                y2={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding)}
+                x1={padding.left}
+                y1={scaleY(yDividerValue)}
+                x2={chartWidth - padding.right}
+                y2={scaleY(yDividerValue)}
                 stroke="#06b6d4"
                 strokeWidth="1.5"
                 strokeDasharray="4 4"
                 opacity="0.5"
               />
               <text
-                x={chartWidth - padding + 10}
-                y={chartHeight - ((medianY / maxY) * (chartHeight - 2 * padding) + padding) + 4}
+                x={chartWidth - padding.right + 10}
+                y={scaleY(yDividerValue) + 4}
                 textAnchor="start"
                 fill="#06b6d4"
                 fontSize="10"
                 fontWeight="600"
                 fontFamily="'IBM Plex Mono', monospace"
               >
-                {formatNumber(medianY)}
+                {yDividerLabel}
               </text>
             </>
           )}
 
+          {/* Axis Insight Labels — placed on the ground (x) and left (y) axis lines */}
+          {xInsight && (() => {
+            const xMid = (padding.left + chartWidth - padding.right) / 2;
+            return (
+              <>
+                <text
+                  x={xMid + (chartWidth - padding.right - xMid) * 0.8}
+                  y={chartHeight - padding.bottom - 10}
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize="12"
+                  fontWeight="500"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  opacity="0.8"
+                  letterSpacing="0.5px"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {xInsight.positive} →
+                </text>
+                <text
+                  x={padding.left + (xMid - padding.left) * 0.2}
+                  y={chartHeight - padding.bottom - 10}
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize="12"
+                  fontWeight="500"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  opacity="0.8"
+                  letterSpacing="0.5px"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  ← {xInsight.negative}
+                </text>
+              </>
+            );
+          })()}
+          {yInsight && (() => {
+            const yMid = (padding.top + chartHeight - padding.bottom) / 2;
+            const yPosLabel = padding.top + (yMid - padding.top) * 0.2;
+            const yNegLabel = yMid + (chartHeight - padding.bottom - yMid) * 0.8;
+            return (
+              <>
+                <text
+                  x={padding.left + 8}
+                  y={yPosLabel}
+                  textAnchor="start"
+                  fill="#ffffff"
+                  fontSize="12"
+                  fontWeight="500"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  opacity="0.8"
+                  letterSpacing="0.5px"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  ↑ {yInsight.positive}
+                </text>
+                <text
+                  x={padding.left + 8}
+                  y={yNegLabel}
+                  textAnchor="start"
+                  fill="#ffffff"
+                  fontSize="12"
+                  fontWeight="500"
+                  fontFamily="'IBM Plex Mono', monospace"
+                  opacity="0.8"
+                  letterSpacing="0.5px"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  ↓ {yInsight.negative}
+                </text>
+              </>
+            );
+          })()}
+
           {/* Bubbles */}
           {bubbles.map((bubble) => {
-            const isInCluster = clusteredIds.has(bubble.id);
             const isHovered = hoveredBubble?.id === bubble.id;
             return (
               <g
@@ -369,10 +458,22 @@ export default function BubbleChart({
 
           {/* Player name labels for top performers */}
           {bubbles.map((bubble) => {
-            const isTop25X = top25PercentileX !== undefined && bubble.xVal >= top25PercentileX;
-            const isTop25Y = top25PercentileY !== undefined && bubble.yVal >= top25PercentileY;
-
-            if (isTop25X || isTop25Y) {
+            let showLabel = false;
+            if (isConversionX && bubble.xVal > 0 && top25PercentileX !== undefined) {
+              // Favor values closer to 0
+              showLabel = Math.abs(bubble.xVal) <= Math.abs(top25PercentileX);
+            }
+            if (isConversionY && bubble.yVal > 0 && top25PercentileY !== undefined) {
+              showLabel = showLabel || Math.abs(bubble.yVal) <= Math.abs(top25PercentileY);
+            }
+            // For other stats, show highest absolute values
+            if (!isConversionX && top25PercentileX !== undefined && Math.abs(bubble.xVal) >= Math.abs(top25PercentileX)) {
+              showLabel = true;
+            }
+            if (!isConversionY && top25PercentileY !== undefined && Math.abs(bubble.yVal) >= Math.abs(top25PercentileY)) {
+              showLabel = true;
+            }
+            if (showLabel) {
               return (
                 <text
                   key={`label-${bubble.id}`}
@@ -464,9 +565,9 @@ export default function BubbleChart({
 
             <div className="space-y-2">
               {[
-                { label: formatStatLabel(xStat as string), value: formatNumber(displayBubble.xVal), color: '#06b6d4' },
-                { label: formatStatLabel(yStat as string), value: formatNumber(displayBubble.yVal), color: '#06b6d4' },
-                { label: formatStatLabel(sizeStat as string), value: formatNumber(displayBubble.sizeVal), color: '#64748b' }
+                { label: xMetric.label, value: formatNumber(displayBubble.xVal), color: '#06b6d4' },
+                { label: yMetric.label, value: formatNumber(displayBubble.yVal), color: '#06b6d4' },
+                { label: sizeMetric.label, value: formatNumber(displayBubble.sizeVal), color: '#64748b' }
               ].map(stat => (
                 <div
                   key={stat.label}
@@ -489,7 +590,7 @@ export default function BubbleChart({
       </div>
 
       {/* Legend */}
-      <div className="mt-6 flex justify-center gap-6 flex-wrap">
+      <div className="mt-3 flex-shrink-0 flex justify-center gap-6 flex-wrap">
         {Object.entries(positionColors).map(([pos, color]) => (
           <div key={pos} className="flex items-center gap-2">
             <div
