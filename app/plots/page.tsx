@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import BubbleChart from '@/components/BubbleChart';
 import Link from 'next/link';
-import { Player, rawMetrics, axisMetrics, getMetric, AxisInsight } from '@/lib/metrics';
+import { Player, rawMetrics, axisMetrics, getMetric } from '@/lib/metrics';
+import { useAxisInsights } from '@/lib/useAxisInsights';
 
 export default function PlotsPage() {
   const [league, setLeague] = useState<string>('all');
@@ -19,23 +20,7 @@ export default function PlotsPage() {
   const yMetric = getMetric(yStatId);
   const sizeMetric = getMetric(sizeStatId);
 
-  // Temp hardcoded insights — will be replaced by Gemini API call
-  const tempInsights: Record<string, AxisInsight> = {
-    'goals_minus_xg': { positive: 'Clinical', negative: 'Wasteful' },
-    'assists_minus_xa': { positive: 'Creative', negative: 'Underperforming' },
-    'npgoals_minus_npxg': { positive: 'Clinical', negative: 'Wasteful' },
-    'gper90_minus_xgper90': { positive: 'Clinical', negative: 'Wasteful' },
-    'aper90_minus_xaper90': { positive: 'Creative', negative: 'Underperforming' },
-    'npga_minus_npxgxa': { positive: 'Overperforming', negative: 'Underperforming' },
-    'xg_minus_xa': { positive: 'Goal Threat', negative: 'Playmaker' },
-    'goals_minus_assists': { positive: 'Scorer', negative: 'Provider' },
-    'shots/goals': { positive: 'Inefficient', negative: 'Efficient' },
-    'keypasses/assists': { positive: 'Unlucky', negative: 'Efficient' },
-    'minutes_per_match': { positive: 'Starter', negative: 'Rotation' },
-  };
-
-  const xInsight = tempInsights[xStatId];
-  const yInsight = tempInsights[yStatId];
+  const { xInsight, yInsight } = useAxisInsights(xStatId, yStatId);
 
   const { data: players = [], isLoading } = useQuery<Player[]>({
     queryKey: ['players', 'v2'],
