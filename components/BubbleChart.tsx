@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Player, MetricConfig, MetricType, AxisInsight } from '@/lib/metrics';
 
 interface BubbleChartProps {
@@ -58,6 +58,21 @@ export default function BubbleChart({
   const [hoveredBubble, setHoveredBubble] = useState<any>(null);
   const [clusterMenu, setClusterMenu] = useState<{ bubbles: any[]; x: number; y: number } | null>(null);
   const [pinnedPlayer, setPinnedPlayer] = useState<any>(null);
+
+  // Track wrapper dimensions for accurate overlay positioning
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [wrapperSize, setWrapperSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setWrapperSize({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Filter out players with zero values for conversion metrics
   const isConversionX = xMetric.id === 'keypasses/assists' || xMetric.id === 'shots/goals';
@@ -167,21 +182,51 @@ export default function BubbleChart({
     return value % 1 === 0 ? value : value.toFixed(1);
   };
 
-  // Position an overlay next to an anchor point using percentages (viewBox-relative)
+  // Position an overlay next to an anchor point using pixel coords
+  // Accounts for SVG preserveAspectRatio centering/letterboxing
   const getOverlayStyle = (anchorX: number, anchorY: number, anchorR: number, overlayWidth: number) => {
-    const gap = 14;
-    let left: number;
-    if (anchorX + anchorR + gap + overlayWidth > chartWidth) {
-      left = anchorX - anchorR - gap - overlayWidth;
+    const { width: cw, height: ch } = wrapperSize;
+    if (!cw || !ch) return { left: '0px', top: '0px' };
+
+    // Compute how the SVG viewBox maps onto the container (xMidYMid meet)
+    const svgAspect = chartWidth / chartHeight;
+    const containerAspect = cw / ch;
+    let scale: number, offsetX: number, offsetY: number;
+    if (containerAspect > svgAspect) {
+      // Container is wider — SVG fits by height, centered horizontally
+      scale = ch / chartHeight;
+      offsetX = (cw - chartWidth * scale) / 2;
+      offsetY = 0;
     } else {
-      left = anchorX + anchorR + gap;
+      // Container is taller — SVG fits by width, centered vertically
+      scale = cw / chartWidth;
+      offsetX = 0;
+      offsetY = (ch - chartHeight * scale) / 2;
     }
-    let top = anchorY - 50;
+
+    // Convert viewBox coordinates to pixel coordinates within the container
+    const px = anchorX * scale + offsetX;
+    const py = anchorY * scale + offsetY;
+    const pr = anchorR * scale;
+
+    const gapLeft = 10;
+    const gapRight = 20;
+    let left: number;
+    if (px + pr + gapRight + overlayWidth > cw) {
+      // Would overflow right — show to the left of the dot
+      left = px - pr - gapLeft - overlayWidth;
+    } else {
+      left = px + pr + gapRight;
+    }
+
+    const cardHeight = 200;
+    let top = py - cardHeight / 3;
     if (top < 0) top = 4;
-    if (top + 220 > chartHeight + 40) top = chartHeight + 40 - 220;
+    if (top + cardHeight > ch) top = ch - cardHeight;
+
     return {
-      left: `${(left / chartWidth) * 100}%`,
-      top: `${(top / chartHeight) * 100}%`,
+      left: `${left}px`,
+      top: `${top}px`,
     };
   };
 
@@ -206,7 +251,7 @@ export default function BubbleChart({
   return (
     <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 h-full flex flex-col">
       {/* SVG wrapper — responsive, fills available space */}
-      <div className="relative w-full flex-1 min-h-0">
+      <div ref={wrapperRef} className="relative w-full flex-1 min-h-0">
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           preserveAspectRatio="xMidYMid meet"
