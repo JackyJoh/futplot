@@ -104,26 +104,32 @@ export default function PlotsPage() {
   const leagues = ['ENG-Premier League', 'ESP-La Liga', 'GER-Bundesliga', 'ITA-Serie A', 'FRA-Ligue 1'];
   const positions = ['FWD', 'MID', 'FWD+MID', 'DEF', 'GK'];
 
-  // Calculate median values for reference lines
-  const xValues = baseFilteredPlayers.map(p => xMetric.getValue(p)).sort((a, b) => a - b);
-  const yValues = baseFilteredPlayers.map(p => yMetric.getValue(p)).sort((a, b) => a - b);
-  const medianX = xValues.length > 0 ? xValues[Math.floor(xValues.length / 2)] : 0;
-  const medianY = yValues.length > 0 ? yValues[Math.floor(yValues.length / 2)] : 0;
+  // Median from all filtered players (for reference lines)
+  const allXValues = baseFilteredPlayers.map(p => xMetric.getValue(p)).sort((a, b) => a - b);
+  const allYValues = baseFilteredPlayers.map(p => yMetric.getValue(p)).sort((a, b) => a - b);
+  const medianX = allXValues.length > 0 ? allXValues[Math.floor(allXValues.length / 2)] : 0;
+  const medianY = allYValues.length > 0 ? allYValues[Math.floor(allYValues.length / 2)] : 0;
 
   const isConversionX = xMetric.id === 'shots/goals' || xMetric.id === 'keypasses/assists';
   const isConversionY = yMetric.id === 'shots/goals' || yMetric.id === 'keypasses/assists';
 
-  // For conversion metrics, use 10th percentile (closer to 0 is better)
-  // For other stats, use 95th percentile (higher is better)
+  // Label thresholds from displayed players only
+  const xValues = topPlayers.map(p => xMetric.getValue(p)).sort((a, b) => a - b);
+  const yValues = topPlayers.map(p => yMetric.getValue(p)).sort((a, b) => a - b);
+
+  // Scale: 10 players ~50% labeled, 50 ~90%, 100 ~95%
+  const labelPct = Math.min(0.92, Math.max(0.4, 1 - (7 / topCount)));
+  const conversionPct = Math.min(0.80, Math.max(0.25, 1 - (5 / topCount)));
+
   const labelThresholdX = xValues.length > 0
     ? (isConversionX
-        ? xValues[Math.floor(xValues.length * 0.60)]
-        : xValues[Math.floor(xValues.length * 0.93)])
+        ? xValues[Math.floor(xValues.length * conversionPct)]
+        : xValues[Math.floor(xValues.length * labelPct)])
     : 0;
   const labelThresholdY = yValues.length > 0
     ? (isConversionY
-        ? yValues[Math.floor(yValues.length * 0.60)]
-        : yValues[Math.floor(yValues.length * 0.93)])
+        ? yValues[Math.floor(yValues.length * conversionPct)]
+        : yValues[Math.floor(yValues.length * labelPct)])
     : 0;
 
   return (

@@ -4,11 +4,11 @@ import { buildAxisInsightsPrompt } from '@/lib/prompts';
 import { runGeminiPrompt } from '@/lib/gemini';
 
 // Abstract the prompt building for the gemini api call
-export async function GET(request: Request, { params }: { params: { x: string, y: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ x: string, y: string }> }) {
     try {
 
         // build prompt
-        const { x, y } = params;
+        const { x, y } = await params;
 
         const xID = getMetricId(x);
         const yID = getMetricId(y);

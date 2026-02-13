@@ -10,7 +10,7 @@ export async function runGeminiPrompt(prompt: string): Promise<any> {
     throw new Error('Missing or invalid prompt field');
   }
 
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
   try {
     const response = await fetch(url, {

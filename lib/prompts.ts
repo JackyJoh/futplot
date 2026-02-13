@@ -1,4 +1,4 @@
-import { getMetric } from '@/lib/metrics';
+import { getMetric, Player } from '@/lib/metrics';
 import columnDescriptions from '@/column_descriptions.json';
 
 // Map each axis metric to the raw columns it's derived from
@@ -34,6 +34,7 @@ function getRelevantDescriptions(statIds: string[]): string {
   return lines.join('\n');
 }
 
+// AXIS PROMPT
 export function buildAxisInsightsPrompt(xStatId: string, yStatId: string): string {
   const xMetric = getMetric(xStatId);
   const yMetric = getMetric(yStatId);
@@ -53,4 +54,61 @@ For each axis, provide a SHORT descriptor (3 words max, shorter if possible) for
 Example: For "G - xG", positive = "Clinical", negative = "Wasteful".
 
 Respond with ONLY valid JSON: {"xPositive":"...","xNegative":"...","yPositive":"...","yNegative":"..."}`;
+}
+
+// INDIVIDUAL PLAYER PROMPT
+
+const playerStatKeys: (keyof Player)[] = [
+  'matches', 'minutes', 'goals', 'assists', 'xg', 'xa',
+  'np_goals', 'np_xg', 'penalties', 'shots', 'key_passes',
+  'xg_chain', 'xg_buildup', 'goals_per90', 'assists_per90',
+  'xg_per90', 'xa_per90', 'G+A', 'npG+A',
+];
+
+function formatPlayerStats(player: Player): string {
+  const cols = columnDescriptions.columns as Record<string, string>;
+  return playerStatKeys
+    .map(key => {
+      const val = player[key];
+      const desc = cols[key] ?? key;
+      return `- ${key} (${desc}): ${val}`;
+    })
+    .join('\n');
+}
+
+export function buildPlayerInsightPrompt(player: Player): string {
+  const stats = formatPlayerStats(player);
+  const per90Minutes = player.matches > 0 ? (player.minutes / player.matches).toFixed(0) : '0';
+  const shotConversion = player.shots > 0 ? ((player.goals / player.shots) * 100).toFixed(1) : '0';
+  const npxgOverperformance = (player.np_goals - player.np_xg).toFixed(2);
+  const xaOverperformance = (player.assists - player.xa).toFixed(2);
+
+  return `You are a football analytics expert. Analyze this player's current season so far and provide a sharp, insightful breakdown.
+
+IMPORTANT: This is the 2025-26 season which may still be in progress. The player has ${player.matches} appearances and ${player.minutes} minutes so far. Judge output and volume relative to their sample size — don't treat a 10-match sample the same as a full season. Per-90 stats are more reliable with more minutes; flag small sample sizes where relevant.
+
+PLAYER: ${player.player}
+TEAM: ${player.team}
+LEAGUE: ${player.league}
+POSITION: ${player.position}
+
+STATS (season to date):
+${stats}
+
+DERIVED:
+- Minutes per match: ${per90Minutes}
+- Shot conversion rate: ${shotConversion}%
+- npG - npxG (finishing overperformance): ${npxgOverperformance}
+- A - xA (creative overperformance): ${xaOverperformance}
+
+Write a concise analysis (3-5 sentences) that covers the player's role, standout qualities, and areas of concern. Be opinionated — don't just restate numbers. Use football language, not data science jargon. Account for how far into the season the data reflects.
+
+Respond with ONLY valid JSON:
+{
+  "summary": "3-5 sentence analysis of the player",
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "weaknesses": ["weakness 1", "weakness 2"],
+  "playerType": "a 2-3 word label for their playing style (e.g. Clinical Poacher, Creative Playmaker, Box-to-Box Engine)",
+  "rating": 1-100 rating relative to position (50 = average starter, 70 = quality starter, 85 = elite, 95+ = Ballon d'Or contender). Be strict — most players should fall between 40-75.
+}`;
 }

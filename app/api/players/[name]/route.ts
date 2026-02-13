@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
         const { name: playerName } = await params;
         
         const result = await pool.query(
-        `SELECT * FROM players WHERE player ILIKE $1 LIMIT 1`,
+        `SELECT * FROM players WHERE player ILIKE $1 LIMIT 10`,
         [`%${playerName}%`]);
 
         console.log('Query result:', result.rows);
@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
         
         return NextResponse.json({
             success: true,
-            data: result.rows[0], // Show metrics for player
+            data: result.rows, // Show metrics for player
         });
 
     } catch (error) {
