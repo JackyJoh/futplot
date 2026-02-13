@@ -4,6 +4,7 @@ import { Providers } from './providers'
 import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://futplot.com'),
   title: 'FutPlot - Football Analytics',
   description: 'Advanced football player analytics and visualization',
   icons: {

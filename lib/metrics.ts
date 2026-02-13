@@ -140,3 +140,8 @@ export function getMetric(id: string): MetricConfig {
   if (!m) throw new Error(`Unknown metric: ${id}`);
   return m;
 }
+
+export function getMetricId(name: string): string | undefined {
+  const m = allMetrics.find(m => m.label.toLowerCase() === name.toLowerCase());
+  return m?.id;
+}

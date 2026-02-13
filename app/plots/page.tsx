@@ -4,8 +4,21 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import BubbleChart from '@/components/BubbleChart';
 import Link from 'next/link';
-import { Player, rawMetrics, axisMetrics, getMetric } from '@/lib/metrics';
-import { useAxisInsights } from '@/lib/useAxisInsights';
+import { Player, rawMetrics, axisMetrics, getMetric, AxisInsight } from '@/lib/metrics';
+
+const fallbackInsights: Record<string, AxisInsight> = {
+  'goals_minus_xg': { positive: 'Clinical', negative: 'Wasteful' },
+  'assists_minus_xa': { positive: 'Creative', negative: 'Underperforming' },
+  'npgoals_minus_npxg': { positive: 'Clinical', negative: 'Wasteful' },
+  'gper90_minus_xgper90': { positive: 'Clinical', negative: 'Wasteful' },
+  'aper90_minus_xaper90': { positive: 'Creative', negative: 'Underperforming' },
+  'npga_minus_npxgxa': { positive: 'Overperforming', negative: 'Underperforming' },
+  'xg_minus_xa': { positive: 'Goal Threat', negative: 'Playmaker' },
+  'goals_minus_assists': { positive: 'Scorer', negative: 'Provider' },
+  'shots/goals': { positive: 'Inefficient', negative: 'Efficient' },
+  'keypasses/assists': { positive: 'Unlucky', negative: 'Efficient' },
+  'minutes_per_match': { positive: 'Starter', negative: 'Rotation' },
+};
 
 export default function PlotsPage() {
   const [league, setLeague] = useState<string>('all');
@@ -20,7 +33,25 @@ export default function PlotsPage() {
   const yMetric = getMetric(yStatId);
   const sizeMetric = getMetric(sizeStatId);
 
-  const { xInsight, yInsight } = useAxisInsights(xStatId, yStatId);
+  const { data: insightsData } = useQuery<{ xInsight: AxisInsight; yInsight: AxisInsight }>({
+    queryKey: ['axis-insights', xStatId, yStatId],
+    queryFn: async () => {
+      const res = await fetch(`/api/gemini/${encodeURIComponent(xMetric.label)}/${encodeURIComponent(yMetric.label)}`);
+      if (!res.ok) throw new Error('Failed to fetch insights');
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      return {
+        xInsight: { positive: json.data.xPositive, negative: json.data.xNegative },
+        yInsight: { positive: json.data.yPositive, negative: json.data.yNegative },
+      };
+    },
+    staleTime: Infinity,
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
+  });
+
+  const xInsight = insightsData?.xInsight ?? fallbackInsights[xStatId];
+  const yInsight = insightsData?.yInsight ?? fallbackInsights[yStatId];
 
   const { data: players = [], isLoading } = useQuery<Player[]>({
     queryKey: ['players', 'v2'],
