@@ -1,4 +1,12 @@
+const MODEL_HIERARCHY = [
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3-pro-preview',
+  'gemini-2.5-pro'
+];
 
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export async function runGeminiPrompt(prompt: string): Promise<any> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -10,36 +18,38 @@ export async function runGeminiPrompt(prompt: string): Promise<any> {
     throw new Error('Missing or invalid prompt field');
   }
 
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+  const errors: string[] = [];
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-      }),
-    });
+  for (const model of MODEL_HIERARCHY) {
+    try {
+      const response = await fetch(`${BASE_URL}/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      });
 
-    if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Gemini response from: ${model}`);
+        return data;
+      }
+
       const errorText = await response.text();
-      console.error('Gemini API upstream error:', response.status, errorText);
-      throw new Error(`Gemini API upstream error: ${response.status} - ${errorText}`);
+      const msg = `${model}: ${response.status} - ${errorText}`;
+      console.warn(`Gemini model failed, trying next. ${msg}`);
+      errors.push(msg);
+    } catch (err: any) {
+      const msg = `${model}: ${err.message}`;
+      console.warn(`Gemini model failed, trying next. ${msg}`);
+      errors.push(msg);
     }
-
-    // Return data in json format
-    const data = await response.json();
-    return data;
-
-  } catch (err: any) {
-    console.error('Gemini API fetch failed:', err);
-    throw new Error('Failed to reach Gemini API');
   }
+
+  console.error('All Gemini models exhausted:', errors);
+  throw new Error('All Gemini models exhausted');
 }

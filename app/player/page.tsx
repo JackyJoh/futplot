@@ -17,6 +17,43 @@ interface AnalysisData {
   rating: number;
 }
 
+const COUNTRY_CODES: Record<string, string> = {
+  'Afghanistan': 'AF', 'Albania': 'AL', 'Algeria': 'DZ', 'Argentina': 'AR', 'Armenia': 'AM',
+  'Australia': 'AU', 'Austria': 'AT', 'Azerbaijan': 'AZ', 'Belgium': 'BE', 'Benin': 'BJ',
+  'Bolivia': 'BO', 'Bosnia and Herzegovina': 'BA', 'Bosnia': 'BA', 'Brazil': 'BR', 'Bulgaria': 'BG',
+  'Burkina Faso': 'BF', 'Cameroon': 'CM', 'Canada': 'CA', 'Cape Verde': 'CV', 'Central African Republic': 'CF',
+  'Chad': 'TD', 'Chile': 'CL', 'China': 'CN', 'Colombia': 'CO', 'Comoros': 'KM',
+  'Congo': 'CG', 'DR Congo': 'CD', 'Costa Rica': 'CR', 'Croatia': 'HR', 'Cuba': 'CU',
+  'Cyprus': 'CY', 'Czech Republic': 'CZ', 'Czechia': 'CZ', 'Denmark': 'DK', 'Dominican Republic': 'DO',
+  'Ecuador': 'EC', 'Egypt': 'EG', 'El Salvador': 'SV', 'England': 'GB-ENG', 'Equatorial Guinea': 'GQ',
+  'Estonia': 'EE', 'Ethiopia': 'ET', 'Finland': 'FI', 'France': 'FR', 'Gabon': 'GA',
+  'Gambia': 'GM', 'Georgia': 'GE', 'Germany': 'DE', 'Ghana': 'GH', 'Greece': 'GR',
+  'Guatemala': 'GT', 'Guinea': 'GN', 'Guinea-Bissau': 'GW', 'Haiti': 'HT', 'Honduras': 'HN',
+  'Hungary': 'HU', 'Iceland': 'IS', 'India': 'IN', 'Indonesia': 'ID', 'Iran': 'IR',
+  'Iraq': 'IQ', 'Ireland': 'IE', 'Republic of Ireland': 'IE', 'Israel': 'IL', 'Italy': 'IT',
+  'Ivory Coast': 'CI', "Cote d'Ivoire": 'CI', 'Jamaica': 'JM', 'Japan': 'JP', 'Jordan': 'JO',
+  'Kazakhstan': 'KZ', 'Kenya': 'KE', 'Kosovo': 'XK', 'Kuwait': 'KW', 'Latvia': 'LV',
+  'Lebanon': 'LB', 'Libya': 'LY', 'Lithuania': 'LT', 'Luxembourg': 'LU', 'Madagascar': 'MG',
+  'Mali': 'ML', 'Malta': 'MT', 'Mauritania': 'MR', 'Mexico': 'MX', 'Moldova': 'MD',
+  'Montenegro': 'ME', 'Morocco': 'MA', 'Mozambique': 'MZ', 'Namibia': 'NA', 'Netherlands': 'NL',
+  'New Zealand': 'NZ', 'Nigeria': 'NG', 'North Macedonia': 'MK', 'Northern Ireland': 'GB-NIR',
+  'Norway': 'NO', 'Oman': 'OM', 'Pakistan': 'PK', 'Palestine': 'PS', 'Panama': 'PA',
+  'Paraguay': 'PY', 'Peru': 'PE', 'Philippines': 'PH', 'Poland': 'PL', 'Portugal': 'PT',
+  'Qatar': 'QA', 'Romania': 'RO', 'Russia': 'RU', 'Rwanda': 'RW', 'Saudi Arabia': 'SA',
+  'Scotland': 'GB-SCT', 'Senegal': 'SN', 'Serbia': 'RS', 'Sierra Leone': 'SL', 'Singapore': 'SG',
+  'Slovakia': 'SK', 'Slovenia': 'SI', 'Somalia': 'SO', 'South Africa': 'ZA', 'South Korea': 'KR',
+  'Korea Republic': 'KR', 'Spain': 'ES', 'Sudan': 'SD', 'Suriname': 'SR', 'Sweden': 'SE',
+  'Switzerland': 'CH', 'Syria': 'SY', 'Tanzania': 'TZ', 'Thailand': 'TH', 'Togo': 'TG',
+  'Trinidad and Tobago': 'TT', 'Tunisia': 'TN', 'Turkey': 'TR', 'Türkiye': 'TR',
+  'Uganda': 'UG', 'Ukraine': 'UA', 'United Arab Emirates': 'AE', 'United States': 'US',
+  'USA': 'US', 'Uruguay': 'UY', 'Uzbekistan': 'UZ', 'Venezuela': 'VE', 'Vietnam': 'VN',
+  'Wales': 'GB-WLS', 'Zambia': 'ZM', 'Zimbabwe': 'ZW',
+};
+
+function countryToCode(country: string): string | null {
+  return COUNTRY_CODES[country] || null;
+}
+
 function getRatingColor(rating: number): string {
   if (rating < 40) return 'text-rose-400';
   if (rating < 70) return 'text-amber-500';
@@ -87,6 +124,32 @@ export default function PlayerPage() {
     enabled: false,
     staleTime: Infinity,
     gcTime: 60 * 60 * 1000,
+  });
+
+  const { data: teamBadge } = useQuery<string | null>({
+    queryKey: ['team-badge', selectedPlayer?.team],
+    queryFn: async () => {
+      if (!selectedPlayer?.team) return null;
+      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(selectedPlayer.team)}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.teams?.[0]?.strBadge || null;
+    },
+    enabled: !!selectedPlayer?.team,
+    staleTime: Infinity,
+  });
+
+  const { data: nationality } = useQuery<string | null>({
+    queryKey: ['player-nationality', selectedPlayer?.player],
+    queryFn: async () => {
+      if (!selectedPlayer?.player) return null;
+      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(selectedPlayer.player)}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.player?.[0]?.strNationality || null;
+    },
+    enabled: !!selectedPlayer?.player,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
@@ -228,13 +291,26 @@ export default function PlayerPage() {
                 <div className="col-span-2 flex flex-col gap-3 min-h-0">
                   {/* Player Info Card with Rating */}
                   <div
-                    className="flex-shrink-0 bg-white/5 border border-white/10 rounded-lg p-5"
+                    className="flex-1 basis-[45%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5"
                     style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                   >
-                    <div className="flex items-start gap-5">
-                      <div className="flex-1 min-w-0">
+                    <div className="grid grid-cols-4 gap-5 h-full">
+                      {/* Left 3/4 — player info + stats */}
+                      <div className="col-span-3 flex flex-col">
                         <div className="flex items-center gap-3 mb-1">
-                          <h2 className="text-xl font-heading font-bold tracking-tight text-white truncate">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {teamBadge && (
+                              <img src={teamBadge} alt={selectedPlayer.team} className="w-10 h-10 object-contain" />
+                            )}
+                            {nationality && countryToCode(nationality) && (
+                              <img
+                                src={`https://flagcdn.com/w80/${countryToCode(nationality)!.toLowerCase().split('-')[0]}.png`}
+                                alt={nationality}
+                                className="w-10 h-7 object-cover rounded-[3px]"
+                              />
+                            )}
+                          </div>
+                          <h2 className="text-3xl font-heading font-bold tracking-tight text-white truncate">
                             {selectedPlayer.player}
                           </h2>
                           <span className="px-2 py-0.5 text-[10px] font-heading font-semibold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-400/20 rounded flex-shrink-0">
@@ -242,7 +318,7 @@ export default function PlayerPage() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mb-4">{selectedPlayer.team} &middot; {selectedPlayer.league}</p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-3 flex-1">
                           {[
                             { label: 'Matches', value: selectedPlayer.matches },
                             { label: 'Minutes', value: Number(selectedPlayer.minutes).toLocaleString() },
@@ -250,41 +326,49 @@ export default function PlayerPage() {
                             { label: 'Assists', value: selectedPlayer.assists },
                             { label: 'xG', value: Number(selectedPlayer.xg).toFixed(1) },
                             { label: 'xA', value: Number(selectedPlayer.xa).toFixed(1) },
+                            { label: 'KP', value: selectedPlayer.key_passes },
+                            { label: 'Shots', value: selectedPlayer.shots },
                           ].map(({ label, value }) => (
-                            <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2.5 text-center">
-                              <p className="font-heading font-semibold text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
-                              <p className="text-lg font-bold tabular-nums text-white">{value}</p>
+                            <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-4 flex flex-col items-center justify-center">
+                              <p className="font-heading font-semibold text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</p>
+                              <p className="text-2xl font-bold tabular-nums text-white">{value}</p>
                             </div>
                           ))}
                         </div>
                       </div>
-                      {/* Rating — shown when analysis is loaded */}
-                      {hasAnalysis && (
-                        <div className={`flex flex-col items-center justify-center flex-shrink-0 ${getRatingGlow(analysis.rating)} rounded-lg px-3 py-2`}>
-                          <div className={`w-20 h-20 rounded-full border-2 ${getRatingBg(analysis.rating)} flex items-center justify-center`}>
-                            <span className={`text-3xl font-bold tabular-nums ${getRatingColor(analysis.rating)}`}>
-                              {analysis.rating}
-                            </span>
+                      {/* Right 1/4 — rating */}
+                      <div className="flex flex-col items-center justify-center">
+                        {hasAnalysis && (
+                          <>
+                            <div className={`w-24 h-24 rounded-full border-2 ${getRatingBg(analysis.rating)} ${getRatingGlow(analysis.rating)} flex items-center justify-center`}>
+                              <span className={`text-4xl font-bold tabular-nums ${getRatingColor(analysis.rating)}`}>
+                                {analysis.rating}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-heading font-semibold uppercase tracking-wider text-slate-400 mt-2">
+                              Rating / 100
+                            </p>
+                          </>
+                        )}
+                        {isAnalyzing && (
+                          <>
+                            <div className="w-24 h-24 rounded-full bg-white/[0.06] animate-pulse" />
+                            <div className="h-3 w-16 bg-white/[0.06] rounded animate-pulse mt-2" />
+                          </>
+                        )}
+                        {!isAnalyzing && !hasAnalysis && (
+                          <div className="w-24 h-24 rounded-full border-2 border-white/[0.06] border-dashed flex items-center justify-center">
+                            <span className="text-slate-600 text-xs">--</span>
                           </div>
-                          <p className="text-[10px] font-heading font-semibold uppercase tracking-wider text-slate-400 mt-1.5">
-                            Rating / 100
-                          </p>
-                        </div>
-                      )}
-                      {/* Rating skeleton */}
-                      {isAnalyzing && (
-                        <div className="flex flex-col items-center justify-center flex-shrink-0 px-3 py-2">
-                          <div className="w-20 h-20 rounded-full bg-white/[0.06] animate-pulse mb-1.5" />
-                          <div className="h-3 w-16 bg-white/[0.06] rounded animate-pulse" />
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Analysis Summary */}
                   {hasAnalysis && (
                     <div
-                      className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex flex-col overflow-y-auto"
+                      className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex flex-col overflow-y-auto"
                       style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                     >
                       <div className="flex items-center gap-3 mb-4">
@@ -301,7 +385,7 @@ export default function PlayerPage() {
 
                   {/* Analysis skeleton */}
                   {isAnalyzing && (
-                    <div className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5">
+                    <div className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="h-5 w-40 bg-white/[0.06] rounded animate-pulse" />
                         <div className="h-5 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -317,7 +401,9 @@ export default function PlayerPage() {
 
                   {/* Pre-analyze state */}
                   {!isAnalyzing && !hasAnalysis && (
-                    <div className="flex-1 flex items-center justify-center">
+                    <div className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center"
+                      style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
+                    >
                       <div className="text-center">
                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-cyan-500/10 border border-cyan-400/20 mb-3">
                           <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -405,9 +491,26 @@ export default function PlayerPage() {
 
                   {/* Empty right column before analysis */}
                   {!isAnalyzing && !hasAnalysis && (
-                    <div className="flex-1 bg-white/[0.02] border border-white/[0.05] border-dashed rounded-lg flex items-center justify-center">
-                      <p className="text-slate-600 text-xs">Insights will appear here</p>
-                    </div>
+                    <>
+                      <div
+                        className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex items-center justify-center"
+                        style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
+                      >
+                        <div className="text-center">
+                          <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-cyan-400/30 mb-1">Strengths</h3>
+                          <p className="text-slate-600 text-xs">--</p>
+                        </div>
+                      </div>
+                      <div
+                        className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex items-center justify-center"
+                        style={{ borderTop: '1px solid rgba(251, 113, 133, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(251, 113, 133, 0.04) 0%, transparent 40%)' }}
+                      >
+                        <div className="text-center">
+                          <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-rose-400/30 mb-1">Weaknesses</h3>
+                          <p className="text-slate-600 text-xs">--</p>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
