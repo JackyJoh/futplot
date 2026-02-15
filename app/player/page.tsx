@@ -182,31 +182,31 @@ export default function PlayerPage() {
   const hasAnalysis = analysis && !isAnalyzing;
 
   return (
-    <div className="h-screen flex flex-col bg-[#151829] text-white overflow-hidden relative">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-[#151829] text-white overflow-y-auto lg:overflow-hidden relative">
       {/* Center ambient glow */}
       <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-cyan-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <header className="border-b border-white/10 flex-shrink-0 bg-[#1a1f3a]/95 backdrop-blur-sm">
-        <div className="px-6 py-3 flex justify-between items-center">
+      <header className="border-b border-white/10 flex-shrink-0 bg-[#1a1f3a]/95 backdrop-blur-sm sticky top-0 z-10">
+        <div className="px-4 md:px-6 py-3 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-heading font-bold tracking-tight">FutPlot</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Player Analysis</p>
+            <h1 className="text-xl md:text-2xl font-heading font-bold tracking-tight">FutPlot</h1>
+            <p className="text-xs md:text-sm text-slate-400 mt-0.5">Player Analysis</p>
           </div>
           <Link
             href="/"
-            className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
+            className="px-3 md:px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Back
+            <span className="hidden sm:inline">Back</span>
           </Link>
         </div>
       </header>
 
-      {/* Main Content — fills remaining viewport */}
-      <div className="flex-1 min-h-0 flex flex-col px-6 py-4">
+      {/* Main Content */}
+      <div className="flex-1 lg:min-h-0 flex flex-col px-4 md:px-6 py-4">
         {/* Search Row */}
         <div className="flex gap-3 flex-shrink-0" ref={dropdownRef}>
           <div className="relative flex-1">
@@ -235,10 +235,10 @@ export default function PlayerPage() {
                   <button
                     key={`${player.player}-${player.team}-${i}`}
                     onClick={() => handleSelectPlayer(player)}
-                    className="w-full text-left px-4 py-2.5 border-l-2 border-l-transparent hover:bg-[rgba(34,211,238,0.08)] hover:border-l-[rgba(34,211,238,0.7)] transition-all duration-150 flex items-center justify-between"
+                    className="w-full text-left px-4 py-2.5 border-l-2 border-l-transparent hover:bg-[rgba(34,211,238,0.08)] hover:border-l-[rgba(34,211,238,0.7)] transition-all duration-150 flex items-center justify-between gap-2"
                   >
-                    <span className="text-sm text-white font-medium">{player.player}</span>
-                    <span className="text-xs text-slate-400">{player.team} &middot; {player.league}</span>
+                    <span className="text-sm text-white font-medium truncate">{player.player}</span>
+                    <span className="text-xs text-slate-400 shrink-0 hidden sm:inline">{player.team} &middot; {player.league}</span>
                   </button>
                 ))}
               </div>
@@ -247,12 +247,12 @@ export default function PlayerPage() {
           <button
             onClick={handleAnalyze}
             disabled={!selectedPlayer || isAnalyzing}
-            className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/30 disabled:cursor-not-allowed text-white font-heading font-semibold rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:shadow-none transition-all duration-200 text-sm flex items-center gap-2 whitespace-nowrap"
+            className="px-4 md:px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/30 disabled:cursor-not-allowed text-white font-heading font-semibold rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:shadow-none transition-all duration-200 text-sm flex items-center gap-2 whitespace-nowrap"
           >
             {isAnalyzing ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Analyzing...
+                <span className="hidden sm:inline">Analyzing...</span>
               </>
             ) : (
               <>
@@ -265,11 +265,11 @@ export default function PlayerPage() {
           </button>
         </div>
 
-        {/* Content area — grows to fill viewport */}
-        <div className="flex-1 min-h-0 mt-4 flex flex-col gap-3 overflow-y-auto">
-          {/* Empty state — before any player is selected */}
+        {/* Content area */}
+        <div className="flex-1 lg:min-h-0 mt-4 flex flex-col gap-3 lg:overflow-y-auto">
+          {/* Empty state */}
           {!selectedPlayer && !isAnalyzing && !hasAnalysis && (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center py-16 lg:py-0">
               <div className="text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10 mb-4">
                   <svg className="w-7 h-7 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,40 +285,41 @@ export default function PlayerPage() {
           {/* Player Info + Analysis layout */}
           {selectedPlayer && (
             <>
-              {/* Two-column layout: Left (2/3) = player card + analysis, Right (1/3) = strengths/weaknesses */}
-              <div className="flex-1 min-h-0 grid grid-cols-3 gap-3">
+              {/* Two-column on lg, stacked on mobile */}
+              <div className="flex-1 lg:min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-3">
                 {/* LEFT COLUMN — player card + analysis */}
-                <div className="col-span-2 flex flex-col gap-3 min-h-0">
+                <div className="col-span-1 lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
                   {/* Player Info Card with Rating */}
                   <div
-                    className="flex-1 basis-[45%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5"
+                    className="flex-shrink-0 lg:flex-1 lg:basis-[45%] lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5"
                     style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                   >
-                    <div className="grid grid-cols-4 gap-5 h-full">
-                      {/* Left 3/4 — player info + stats */}
-                      <div className="col-span-3 flex flex-col">
-                        <div className="flex items-center gap-3 mb-1">
+                    {/* Mobile: stacked. Desktop: 4-col grid */}
+                    <div className="flex flex-col lg:grid lg:grid-cols-4 lg:gap-5 lg:h-full gap-4">
+                      {/* Player info + stats */}
+                      <div className="lg:col-span-3 flex flex-col">
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {teamBadge && (
-                              <img src={teamBadge} alt={selectedPlayer.team} className="w-10 h-10 object-contain" />
+                              <img src={teamBadge} alt={selectedPlayer.team} className="w-8 h-8 md:w-10 md:h-10 object-contain" />
                             )}
                             {nationality && countryToCode(nationality) && (
                               <img
                                 src={`https://flagcdn.com/w80/${countryToCode(nationality)!.toLowerCase().split('-')[0]}.png`}
                                 alt={nationality}
-                                className="w-10 h-7 object-cover rounded-[3px]"
+                                className="w-8 h-[22px] md:w-10 md:h-7 object-cover rounded-[3px]"
                               />
                             )}
                           </div>
-                          <h2 className="text-3xl font-heading font-bold tracking-tight text-white truncate">
+                          <h2 className="text-xl md:text-2xl lg:text-3xl font-heading font-bold tracking-tight text-white truncate">
                             {selectedPlayer.player}
                           </h2>
                           <span className="px-2 py-0.5 text-[10px] font-heading font-semibold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-400/20 rounded flex-shrink-0">
                             {selectedPlayer.position}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mb-4">{selectedPlayer.team} &middot; {selectedPlayer.league}</p>
-                        <div className="grid grid-cols-4 gap-3 flex-1">
+                        <p className="text-xs text-slate-400 mb-3 md:mb-4">{selectedPlayer.team} &middot; {selectedPlayer.league}</p>
+                        <div className="grid grid-cols-4 gap-2 md:gap-3 lg:flex-1">
                           {[
                             { label: 'Matches', value: selectedPlayer.matches },
                             { label: 'Minutes', value: Number(selectedPlayer.minutes).toLocaleString() },
@@ -329,35 +330,35 @@ export default function PlayerPage() {
                             { label: 'KP', value: selectedPlayer.key_passes },
                             { label: 'Shots', value: selectedPlayer.shots },
                           ].map(({ label, value }) => (
-                            <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-4 flex flex-col items-center justify-center">
-                              <p className="font-heading font-semibold text-[10px] uppercase tracking-wider text-slate-500 mb-1">{label}</p>
-                              <p className="text-2xl font-bold tabular-nums text-white">{value}</p>
+                            <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-1.5 md:px-3 py-2 md:py-4 flex flex-col items-center justify-center">
+                              <p className="font-heading font-semibold text-[9px] md:text-[10px] uppercase tracking-wider text-slate-500 mb-0.5 md:mb-1">{label}</p>
+                              <p className="text-base md:text-xl lg:text-2xl font-bold tabular-nums text-white">{value}</p>
                             </div>
                           ))}
                         </div>
                       </div>
-                      {/* Right 1/4 — rating */}
-                      <div className="flex flex-col items-center justify-center">
+                      {/* Rating column — on mobile sits below stats */}
+                      <div className="flex flex-row lg:flex-col items-center justify-center gap-3 lg:gap-0 py-1 lg:py-0">
                         {hasAnalysis && (
                           <>
-                            <div className={`w-24 h-24 rounded-full border-2 ${getRatingBg(analysis.rating)} ${getRatingGlow(analysis.rating)} flex items-center justify-center`}>
-                              <span className={`text-4xl font-bold tabular-nums ${getRatingColor(analysis.rating)}`}>
+                            <div className={`w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full border-2 ${getRatingBg(analysis.rating)} ${getRatingGlow(analysis.rating)} flex items-center justify-center`}>
+                              <span className={`text-2xl md:text-3xl lg:text-4xl font-bold tabular-nums ${getRatingColor(analysis.rating)}`}>
                                 {analysis.rating}
                               </span>
                             </div>
-                            <p className="text-[10px] font-heading font-semibold uppercase tracking-wider text-slate-400 mt-2">
+                            <p className="text-[10px] font-heading font-semibold uppercase tracking-wider text-slate-400 lg:mt-2">
                               Rating / 100
                             </p>
                           </>
                         )}
                         {isAnalyzing && (
                           <>
-                            <div className="w-24 h-24 rounded-full bg-white/[0.06] animate-pulse" />
-                            <div className="h-3 w-16 bg-white/[0.06] rounded animate-pulse mt-2" />
+                            <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full bg-white/[0.06] animate-pulse" />
+                            <div className="h-3 w-16 bg-white/[0.06] rounded animate-pulse lg:mt-2" />
                           </>
                         )}
                         {!isAnalyzing && !hasAnalysis && (
-                          <div className="w-24 h-24 rounded-full border-2 border-white/[0.06] border-dashed flex items-center justify-center">
+                          <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full border-2 border-white/[0.06] border-dashed flex items-center justify-center">
                             <span className="text-slate-600 text-xs">--</span>
                           </div>
                         )}
@@ -368,7 +369,7 @@ export default function PlayerPage() {
                   {/* Analysis Summary */}
                   {hasAnalysis && (
                     <div
-                      className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex flex-col overflow-y-auto"
+                      className="lg:flex-1 lg:basis-[55%] lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5 flex flex-col lg:overflow-y-auto"
                       style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                     >
                       <div className="flex items-center gap-3 mb-4">
@@ -377,7 +378,7 @@ export default function PlayerPage() {
                         </span>
                         <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-slate-400">Analysis</h3>
                       </div>
-                      <p className="text-base text-slate-300 leading-relaxed">
+                      <p className="text-sm md:text-base text-slate-300 leading-relaxed">
                         {analysis.summary}
                       </p>
                     </div>
@@ -385,7 +386,7 @@ export default function PlayerPage() {
 
                   {/* Analysis skeleton */}
                   {isAnalyzing && (
-                    <div className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg p-5">
+                    <div className="lg:flex-1 lg:basis-[55%] lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="h-5 w-40 bg-white/[0.06] rounded animate-pulse" />
                         <div className="h-5 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -401,12 +402,13 @@ export default function PlayerPage() {
 
                   {/* Pre-analyze state */}
                   {!isAnalyzing && !hasAnalysis && (
-                    <div className="flex-1 basis-[55%] min-h-0 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center"
+                    <div
+                      className="lg:flex-1 lg:basis-[55%] lg:min-h-0 min-h-[140px] bg-white/5 border border-white/10 rounded-lg flex items-center justify-center"
                       style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                     >
-                      <div className="text-center">
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-cyan-500/10 border border-cyan-400/20 mb-3">
-                          <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="text-center py-6 lg:py-0">
+                        <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-cyan-500/10 border border-cyan-400/20 mb-3">
+                          <svg className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
                         </div>
@@ -418,11 +420,11 @@ export default function PlayerPage() {
                 </div>
 
                 {/* RIGHT COLUMN — strengths above weaknesses */}
-                <div className="flex flex-col gap-3 min-h-0">
+                <div className="flex flex-col gap-3 lg:min-h-0">
                   {/* Strengths */}
                   {hasAnalysis && (
                     <div
-                      className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 overflow-y-auto"
+                      className="flex-1 lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5 lg:overflow-y-auto"
                       style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                     >
                       <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-cyan-400 mb-3">
@@ -430,7 +432,7 @@ export default function PlayerPage() {
                       </h3>
                       <ul className="space-y-1.5">
                         {analysis.strengths.map((s, i) => (
-                          <li key={i} className="flex items-start gap-2 text-base text-slate-300">
+                          <li key={i} className="flex items-start gap-2 text-sm md:text-base text-slate-300">
                             <span className="text-cyan-400 mt-0.5 shrink-0">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -446,7 +448,7 @@ export default function PlayerPage() {
                   {/* Weaknesses */}
                   {hasAnalysis && (
                     <div
-                      className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 overflow-y-auto"
+                      className="flex-1 lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5 lg:overflow-y-auto"
                       style={{ borderTop: '1px solid rgba(251, 113, 133, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(251, 113, 133, 0.04) 0%, transparent 40%)' }}
                     >
                       <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-rose-400 mb-3">
@@ -454,7 +456,7 @@ export default function PlayerPage() {
                       </h3>
                       <ul className="space-y-1.5">
                         {analysis.weaknesses.map((w, i) => (
-                          <li key={i} className="flex items-start gap-2 text-base text-slate-300">
+                          <li key={i} className="flex items-start gap-2 text-sm md:text-base text-slate-300">
                             <span className="text-rose-400 mt-0.5 shrink-0">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -470,7 +472,7 @@ export default function PlayerPage() {
                   {/* Right column skeletons */}
                   {isAnalyzing && (
                     <>
-                      <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-5">
+                      <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5">
                         <div className="h-3 w-20 bg-white/[0.06] rounded animate-pulse mb-3" />
                         <div className="space-y-2">
                           <div className="h-3 w-full bg-white/[0.06] rounded animate-pulse" />
@@ -478,7 +480,7 @@ export default function PlayerPage() {
                           <div className="h-3 w-4/6 bg-white/[0.06] rounded animate-pulse" />
                         </div>
                       </div>
-                      <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-5">
+                      <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5">
                         <div className="h-3 w-24 bg-white/[0.06] rounded animate-pulse mb-3" />
                         <div className="space-y-2">
                           <div className="h-3 w-full bg-white/[0.06] rounded animate-pulse" />
@@ -493,7 +495,7 @@ export default function PlayerPage() {
                   {!isAnalyzing && !hasAnalysis && (
                     <>
                       <div
-                        className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex items-center justify-center"
+                        className="flex-1 min-h-[100px] lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5 flex items-center justify-center"
                         style={{ borderTop: '1px solid rgba(34, 211, 238, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 0%, transparent 40%)' }}
                       >
                         <div className="text-center">
@@ -502,7 +504,7 @@ export default function PlayerPage() {
                         </div>
                       </div>
                       <div
-                        className="flex-1 min-h-0 bg-white/5 border border-white/10 rounded-lg p-5 flex items-center justify-center"
+                        className="flex-1 min-h-[100px] lg:min-h-0 bg-white/5 border border-white/10 rounded-lg p-4 md:p-5 flex items-center justify-center"
                         style={{ borderTop: '1px solid rgba(251, 113, 133, 0.15)', backgroundImage: 'linear-gradient(to bottom, rgba(251, 113, 133, 0.04) 0%, transparent 40%)' }}
                       >
                         <div className="text-center">

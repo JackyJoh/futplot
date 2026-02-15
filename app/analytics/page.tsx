@@ -36,6 +36,7 @@ const positions = ['All', 'FWD', 'MID', 'DEF', 'GK'];
 export default function AnalyticsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filters
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([]);
@@ -148,33 +149,77 @@ export default function AnalyticsPage() {
   const visiblePlayers = sortedPlayers.slice(0, displayCount);
 
   return (
-    <div className="h-screen bg-[#1a1f3a] text-white flex flex-col overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-[#1a1f3a] text-white flex flex-col lg:overflow-hidden">
       {/* Header */}
-      <header className="border-b border-white/10 z-50 bg-[#1a1f3a]/95 backdrop-blur-sm flex-shrink-0">
-        <div className="px-6 py-4 flex justify-between items-center">
+      <header className="border-b border-white/10 z-50 bg-[#1a1f3a]/95 backdrop-blur-sm flex-shrink-0 sticky top-0">
+        <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-heading font-bold tracking-tight">
+            <h1 className="text-xl md:text-2xl font-heading font-bold tracking-tight">
               FutPlot
             </h1>
-            <p className="text-sm text-slate-400 mt-0.5">Table Analytics</p>
+            <p className="text-xs md:text-sm text-slate-400 mt-0.5">Table Analytics</p>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Mobile filter toggle */}
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              className="lg:hidden px-3 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {(selectedLeagues.length > 0 || selectedPosition !== 'All') && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              )}
+            </button>
+            <Link
+              href="/"
+              className="px-3 md:px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="hidden sm:inline">Back</span>
+            </Link>
+          </div>
         </div>
       </header>
 
+      {/* Mobile filters panel */}
+      {showFilters && (
+        <div className="lg:hidden border-b border-white/10 bg-[#1a1f3a]/95 backdrop-blur-sm px-4 py-4 flex gap-6 overflow-x-auto flex-shrink-0">
+          <div className="flex-shrink-0">
+            <p className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider mb-2">League</p>
+            <div className="flex gap-1.5">
+              {leagues.map(league => (
+                <button key={league.id} onClick={() => toggleLeague(league.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-all ${
+                    (league.id === 'all' && selectedLeagues.length === 0) || (league.id !== 'all' && selectedLeagues.includes(league.id))
+                      ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-300 border border-white/10'
+                  }`}>{league.name}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <p className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider mb-2">Position</p>
+            <div className="flex gap-1.5">
+              {positions.map(pos => (
+                <button key={pos} onClick={() => setSelectedPosition(pos)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-all ${
+                    selectedPosition === pos ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-300 border border-white/10'
+                  }`}>{pos}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full flex gap-6 px-6 py-6">
-          {/* Left Sidebar - Filters */}
-          <aside className="w-56 flex-shrink-0 space-y-6 overflow-y-auto pr-2">
+      <div className="flex-1 lg:overflow-hidden">
+        <div className="lg:h-full flex gap-6 px-4 md:px-6 py-4 md:py-6">
+          {/* Left Sidebar - Filters (desktop only) */}
+          <aside className="hidden lg:block w-56 flex-shrink-0 space-y-6 overflow-y-auto pr-2">
             {/* League Filters */}
             <div>
               <h3 className="text-xs font-heading font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -232,9 +277,9 @@ export default function AnalyticsPage() {
           </aside>
 
           {/* Right Side - Data Table */}
-          <div className="flex-1 bg-white/5 rounded-lg border border-white/10 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-auto">
-              <table className="w-full">
+          <div className="flex-1 min-h-[400px] lg:min-h-0 bg-white/5 rounded-lg border border-white/10 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
+              <table className="w-full min-w-[700px]">
                 <thead className="bg-[#1e2444] border-b border-white/10 sticky top-0 z-10">
                   <tr>
                     <th

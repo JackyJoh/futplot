@@ -28,19 +28,22 @@ export default function Home() {
 
       {/* Header */}
       <header className="relative z-10 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
-          <h1 className="text-2xl font-heading font-bold tracking-tight">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex justify-between items-center">
+          <h1 className="text-xl md:text-2xl font-heading font-bold tracking-tight">
             FutPlot
           </h1>
-          <nav className="flex gap-8">
-            <Link href="/analytics" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
-              Table Analytics
+          <nav className="flex gap-4 md:gap-8">
+            <Link href="/analytics" className="text-xs md:text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
+              <span className="hidden sm:inline">Table Analytics</span>
+              <span className="sm:hidden">Table</span>
             </Link>
-            <Link href="/plots" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
-              Data Visualizations
+            <Link href="/plots" className="text-xs md:text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
+              <span className="hidden sm:inline">Data Visualizations</span>
+              <span className="sm:hidden">Plots</span>
             </Link>
-            <Link href="/player" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
-              Player Analysis
+            <Link href="/player" className="text-xs md:text-sm text-slate-400 hover:text-cyan-400 transition-colors font-medium">
+              <span className="hidden sm:inline">Player Analysis</span>
+              <span className="sm:hidden">Players</span>
             </Link>
           </nav>
         </div>
@@ -48,10 +51,10 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="relative z-10">
-        <div className="max-w-7xl mx-auto px-6 py-20">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20">
           {/* Hero Section */}
           <section className="text-center mb-20">
-            <h2 className="text-6xl md:text-7xl font-heading font-bold mb-6 tracking-tight">
+            <h2 className="text-4xl sm:text-6xl md:text-7xl font-heading font-bold mb-6 tracking-tight">
               Football Analytics<br />
               <span className="text-cyan-400">Redefined</span>
             </h2>

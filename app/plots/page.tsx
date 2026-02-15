@@ -28,6 +28,7 @@ export default function PlotsPage() {
   const [xStatId, setXStatId] = useState<string>('goals_minus_xg');
   const [yStatId, setYStatId] = useState<string>('assists_minus_xa');
   const [sizeStatId, setSizeStatId] = useState<string>('minutes');
+  const [showFilters, setShowFilters] = useState(false);
 
   const xMetric = getMetric(xStatId);
   const yMetric = getMetric(yStatId);
@@ -133,33 +134,95 @@ export default function PlotsPage() {
     : 0;
 
   return (
-    <div className="h-screen flex flex-col bg-[#1a1f3a] text-white overflow-hidden">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-[#1a1f3a] text-white lg:overflow-hidden">
       {/* Header */}
-      <header className="border-b border-white/10 flex-shrink-0 bg-[#1a1f3a]/95 backdrop-blur-sm">
-        <div className="px-6 py-3 flex justify-between items-center">
+      <header className="border-b border-white/10 flex-shrink-0 bg-[#1a1f3a]/95 backdrop-blur-sm sticky top-0 z-50">
+        <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-heading font-bold tracking-tight">
+            <h1 className="text-xl md:text-2xl font-heading font-bold tracking-tight">
               FutPlot
             </h1>
-            <p className="text-sm text-slate-400 mt-0.5">Data Visualizations</p>
+            <p className="text-xs md:text-sm text-slate-400 mt-0.5">Data Visualizations</p>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              className="lg:hidden px-3 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+              {(league !== 'all' || position !== 'FWD+MID' || minGames !== 5) && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              )}
+            </button>
+            <Link
+              href="/"
+              className="px-3 md:px-4 py-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="hidden sm:inline">Back</span>
+            </Link>
+          </div>
         </div>
       </header>
 
+      {/* Mobile filters panel */}
+      {showFilters && (
+        <div className="lg:hidden border-b border-white/10 bg-[#1a1f3a]/95 backdrop-blur-sm px-4 py-4 flex-shrink-0 overflow-y-auto max-h-[60vh]">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">League</label>
+              <select value={league} onChange={(e) => setLeague(e.target.value)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors">
+                <option value="all">All Leagues</option>
+                {leagues.map(l => <option key={l} value={l}>{l.split('-')[1] || l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Position</label>
+              <select value={position} onChange={(e) => setPosition(e.target.value)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors">
+                <option value="all">All Positions</option>
+                {positions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Min Games</label>
+              <input type="number" value={minGames} onChange={(e) => setMinGames(parseInt(e.target.value) || 0)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors" min="0" />
+            </div>
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Top {topCount} Players</label>
+              <input type="range" value={topCount} onChange={(e) => setTopCount(parseInt(e.target.value))} min="5" max="100" className="w-full mt-2" />
+            </div>
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">X Axis</label>
+              <select value={xStatId} onChange={(e) => setXStatId(e.target.value)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors">
+                {axisMetrics.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Y Axis</label>
+              <select value={yStatId} onChange={(e) => setYStatId(e.target.value)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors">
+                {axisMetrics.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-[10px] font-heading font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Bubble Size</label>
+              <select value={sizeStatId} onChange={(e) => setSizeStatId(e.target.value)} className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-400 transition-colors">
+                {rawMetrics.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <div className="flex-1 min-h-0 px-6 py-4">
-        <div className="flex gap-6 h-full">
-          {/* Left Sidebar - Filters */}
-          <aside className="w-56 flex-shrink-0 space-y-6 overflow-y-auto">
+      <div className="flex-1 lg:min-h-0 px-4 md:px-6 py-4">
+        <div className="flex gap-6 lg:h-full">
+          {/* Left Sidebar - Filters (desktop only) */}
+          <aside className="hidden lg:block w-56 flex-shrink-0 space-y-6 overflow-y-auto">
             {/* League Filter */}
             <div>
               <h3 className="text-xs font-heading font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -294,7 +357,7 @@ export default function PlotsPage() {
           </aside>
 
           {/* Center - Bubble Chart */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-[400px] sm:min-h-[500px] lg:min-h-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-96 bg-white/5 rounded-lg border border-white/10">
                 <div className="flex flex-col items-center">
