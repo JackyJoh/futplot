@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Pool } from '@neondatabase/serverless'
 import { runGeminiPrompt } from '@/lib/gemini';
 import { buildPlayerInsightPrompt } from '@/lib/prompts';
+import { client } from '@/lib/redis';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -25,6 +26,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ play
                 { status: 404 }
             );
         }
+
+        // check redis before calling AI
+        const cacheKey = `player:${playerName}`;
+        const cached = await client.get(cacheKey);
+
+        if (cached) {
+            return NextResponse.json(JSON.parse(cached));
+        }
+
 
         const playerData = result.rows[0];
         const prompt = buildPlayerInsightPrompt(playerData);
@@ -55,20 +65,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ play
             );
         }
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                player: playerData.player,
-                team: playerData.team,
-                league: playerData.league,
-                position: playerData.position,
-                summary: parsed.summary,
-                strengths: parsed.strengths,
-                weaknesses: parsed.weaknesses,
-                playerType: parsed.playerType,
-                rating: parsed.rating,
-            },
-        });
+        const responseData = {
+            player: playerData.player,
+            team: playerData.team,
+            league: playerData.league,
+            position: playerData.position,
+            summary: parsed.summary,
+            strengths: parsed.strengths,
+            weaknesses: parsed.weaknesses,
+            playerType: parsed.playerType,
+            rating: parsed.rating,
+        };
+
+        await client.set(cacheKey, JSON.stringify({ success: true, data: responseData }), { EX: 24 * 3600 }); // cache for a day
+
+        return NextResponse.json({ success: true, data: responseData });
 
     } catch (error) {
         console.error('Gemini player insight error:', error);
