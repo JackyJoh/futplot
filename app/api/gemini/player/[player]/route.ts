@@ -77,7 +77,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ play
             rating: parsed.rating,
         };
 
-        await client.set(cacheKey, JSON.stringify({ success: true, data: responseData }), { EX: 24 * 3600 }); // cache for a day
+        await client.set(cacheKey, JSON.stringify({ success: true, data: responseData }), { EX: 7 * 24 * 3600 }); // cache for a week
 
         return NextResponse.json({ success: true, data: responseData });
 

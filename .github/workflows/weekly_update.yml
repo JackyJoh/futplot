@@ -9,37 +9,48 @@ on:
 jobs:
   scrape-and-update:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
-      - name: Install dependencies
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Python dependencies
         run: |
           cd scripts
           pip install -r requirements.txt
-      
-      - name: Run scraper
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run scraper and prewarm cache
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cd scripts
           python scraper.py
-      
+
       - name: Notify on failure
         if: failure()
         run: |
           echo "Scraper failed to run. Check logs for details."
           # TODO: Add notification service (e.g., Slack, Email, Discord)
-      
+
       - name: Create summary
         if: success()
         run: |
-          echo "✅ Weekly data update completed successfully" >> $GITHUB_STEP_SUMMARY
-          echo "- Scraper executed at: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Weekly data update and cache prewarm completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Executed at: $(date)" >> $GITHUB_STEP_SUMMARY

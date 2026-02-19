@@ -2,13 +2,25 @@ import { NextResponse } from 'next/server';
 import { getMetricId } from '@/lib/metrics';
 import { buildAxisInsightsPrompt } from '@/lib/prompts';
 import { runGeminiPrompt } from '@/lib/gemini';
-
+import { client } from '@/lib/redis';
+ 
 // Abstract the prompt building for the gemini api call
 export async function GET(request: Request, { params }: { params: Promise<{ x: string, y: string }> }) {
     try {
 
+        
+
+
         // build prompt
         const { x, y } = await params;
+
+        // check redis for cached params before building
+        const cacheKey = `params:${x}:${y}`;
+        const cached = await client.get(cacheKey);
+
+        if (cached) {
+            return NextResponse.json(JSON.parse(cached));
+        }
 
         const xID = getMetricId(x);
         const yID = getMetricId(y);
@@ -48,15 +60,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ x: s
             );
         }
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                xPositive: parsed.xPositive,
-                xNegative: parsed.xNegative,
-                yPositive: parsed.yPositive,
-                yNegative: parsed.yNegative,
-            },
-        });
+        const responseData = {
+            xPositive: parsed.xPositive,
+            xNegative: parsed.xNegative,
+            yPositive: parsed.yPositive,
+            yNegative: parsed.yNegative,
+        };
+
+        await client.set(cacheKey, JSON.stringify({ success: true, data: responseData }), { EX: 7 * 24 * 3600 }); // cache for a week
+
+        return NextResponse.json({ success: true, data: responseData });
 
     } catch (error) {
         console.error('Gemini error details:', error);

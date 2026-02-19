@@ -157,17 +157,44 @@ def update_db(df):
     
 
 
+def prewarm_cache():
+    """Run the prewarm script to flush and re-warm the top 10 player cache."""
+    import subprocess
+    import sys
+
+    print("\n--- Pre-warming Cache ---")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(script_dir)
+
+    try:
+        result = subprocess.run(
+            ['npx', 'tsx', 'scripts/prewarm.ts'],
+            cwd=root_dir,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            print("✗ Prewarm script exited with errors")
+    except subprocess.TimeoutExpired:
+        print("✗ Prewarm timed out after 5 minutes")
+    except Exception as e:
+        print(f"✗ Prewarm failed: {e}")
+
+
 def main():
     """Main execution"""
     try:
         df = scrape_player_data()
-        
+
         if df.empty:
             print("\nNo data collected")
             return
-        
+
         # Update DB
-        update_db(df)
+        success = update_db(df)
+
+        # Pre-warm Gemini cache for top players
+        if success:
+            prewarm_cache()
 
 
         # Save to CSV

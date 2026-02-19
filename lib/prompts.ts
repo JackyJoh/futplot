@@ -49,9 +49,14 @@ ${relevantDescs}
 X-AXIS metric: "${xMetric.label}" (type: ${xMetric.type})
 Y-AXIS metric: "${yMetric.label}" (type: ${yMetric.type})
 
-For each axis, provide a SHORT descriptor (3 words max, shorter if possible) for the POSITIVE end (high/right/top) and NEGATIVE end (low/left/bottom). Use intuitive football terms.
+For each axis, provide a SHORT descriptor (3 words max, shorter if possible) for the POSITIVE end (high/right/top) and NEGATIVE end (low/left/bottom). Use intuitive football terms that reflect what the metric ACTUALLY measures — not just finishing quality.
 
-Example: For "G - xG", positive = "Clinical", negative = "Wasteful".
+Examples:
+- "G - xG" (goals minus expected goals): positive = "Clinical", negative = "Wasteful" — this is about the SCORER's finishing quality.
+- "A - xA" (assists minus expected assists): positive = "Clinical Teammates", negative = "Wasteful Teammates" — this reflects how well the SCORER converts the assistant's chances, NOT the assister's skill.
+- "Minutes" or "Matches": positive = "Ever-Present", negative = "Fringe Player" — this is about availability/workload, not quality.
+
+Match the descriptor to what the metric semantically means. Do NOT default to "Clinical/Wasteful" for non-finishing metrics.
 
 Respond with ONLY valid JSON: {"xPositive":"...","xNegative":"...","yPositive":"...","yNegative":"..."}`;
 }

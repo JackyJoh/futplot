@@ -35,7 +35,7 @@ export default function PlotsPage() {
   const sizeMetric = getMetric(sizeStatId);
 
   const { data: insightsData } = useQuery<{ xInsight: AxisInsight; yInsight: AxisInsight }>({
-    queryKey: ['axis-insights', xStatId, yStatId],
+    queryKey: ['axis-insights-v2', xStatId, yStatId],
     queryFn: async () => {
       const res = await fetch(`/api/gemini/${encodeURIComponent(xMetric.label)}/${encodeURIComponent(yMetric.label)}`);
       if (!res.ok) throw new Error('Failed to fetch insights');
