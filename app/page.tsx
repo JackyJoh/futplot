@@ -51,7 +51,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-12 md:pt-20 pb-0">
           {/* Hero Section */}
           <section className="text-center mb-20">
             <h2 className="text-4xl sm:text-6xl md:text-7xl font-heading font-bold mb-6 tracking-tight">
@@ -121,7 +121,7 @@ export default function Home() {
           </section>
 
           {/* Key Features Grid */}
-          <section className="mb-12">
+          <section className="mb-0">
             <h3 className="text-sm font-heading font-semibold text-slate-400 uppercase tracking-wider mb-8 text-center">
               Key Features
             </h3>

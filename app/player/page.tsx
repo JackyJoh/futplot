@@ -222,7 +222,11 @@ export default function PlayerPage() {
                 if (searchResults.length > 0 && !selectedPlayer) setShowDropdown(true);
               }}
               placeholder="Search for a player..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:border-cyan-400/50 focus:shadow-[0_0_12px_rgba(34,211,238,0.15)] focus:outline-none transition-all duration-200 text-sm"
+              className={`w-full pl-10 pr-4 py-2.5 bg-white/5 rounded-lg text-white placeholder-slate-500 focus:outline-none transition-all duration-200 text-sm ${
+                !selectedPlayer && !hasAnalysis
+                  ? 'border border-cyan-400/40 shadow-[0_0_18px_rgba(34,211,238,0.12)] focus:border-cyan-400/70 focus:shadow-[0_0_24px_rgba(34,211,238,0.2)]'
+                  : 'border border-white/10 focus:border-cyan-400/50 focus:shadow-[0_0_12px_rgba(34,211,238,0.15)]'
+              }`}
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -247,7 +251,11 @@ export default function PlayerPage() {
           <button
             onClick={handleAnalyze}
             disabled={!selectedPlayer || isAnalyzing}
-            className="px-4 md:px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/30 disabled:cursor-not-allowed text-white font-heading font-semibold rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:shadow-none transition-all duration-200 text-sm flex items-center gap-2 whitespace-nowrap"
+            className={`px-4 md:px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/30 disabled:cursor-not-allowed text-white font-heading font-semibold rounded-lg disabled:shadow-none transition-all duration-200 text-sm flex items-center gap-2 whitespace-nowrap ${
+              selectedPlayer && !isAnalyzing && !hasAnalysis
+                ? 'shadow-[0_0_30px_rgba(34,211,238,0.5)] ring-1 ring-cyan-400/50 animate-pulse'
+                : 'shadow-[0_0_20px_rgba(34,211,238,0.15)] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)]'
+            }`}
           >
             {isAnalyzing ? (
               <>
@@ -276,7 +284,7 @@ export default function PlayerPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <p className="text-slate-400 text-sm">Search for a player to get started</p>
+                <p className="text-slate-200 text-sm font-medium">Search for a player to get started</p>
                 <p className="text-slate-500 text-xs mt-1">AI-powered scouting reports with strengths, weaknesses, and ratings</p>
               </div>
             </div>
@@ -412,8 +420,8 @@ export default function PlayerPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
                         </div>
-                        <p className="text-slate-300 text-sm font-medium">Ready to analyze {selectedPlayer.player}</p>
-                        <p className="text-slate-500 text-xs mt-1">Click Analyze to generate an AI scouting report</p>
+                        <p className="text-slate-300 text-base md:text-lg font-medium">Ready to analyze {selectedPlayer.player}</p>
+                        <p className="text-slate-400 text-sm mt-1.5">↑ Press <span className="text-cyan-400 font-semibold">Analyze</span> to generate a scouting report</p>
                       </div>
                     </div>
                   )}
